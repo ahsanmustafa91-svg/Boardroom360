@@ -290,7 +290,7 @@
     const ns = noticesFor(m.id);
     const myNotice = ns.filter((n) => n.status === 'issued' && n.recipients[u.id]).pop();
     let html = `
-      <div class="page-head"><div><div class="faint">${esc(b.name)}</div><h1>${esc(m.title)}</h1><div class="btns">${statusChip(m)}${m.agendaApproved ? '<span class="chip ok">Agenda approved</span>' : '<span class="chip warn">Agenda awaiting Chair</span>'}</div></div>
+      <div class="page-head"><div><div class="faint">${esc(b.name)}</div><h1>${esc(m.title)}</h1><div class="btns">${statusChip(m)}${m.agendaApproved ? `<span class="chip ok">Agenda approved by ${esc(uname(b.chair))}</span>` : `<span class="chip warn">Agenda awaiting approval by ${esc(uname(b.chair))} (Chair)</span>`}</div></div>
       <div class="btns">${m.status === 'live' ? `<a class="btn primary" href="#/live/${m.id}">Join live meeting</a>` : ''}
         ${m.status === 'scheduled' && isStaff() ? `<button class="btn primary" onclick="B.startMeeting('${m.id}')">Start meeting</button>` : ''}
         ${m.minutes ? `<a class="btn" href="#/minutes/${m.id}">Minutes</a>` : ''}
@@ -317,6 +317,7 @@
     html += `</div><div>`;
     // agenda
     html += `<div class="card"><div class="card-head"><h2>Agenda</h2>${isChairOf(m) && !m.agendaApproved && ['polling', 'scheduled'].includes(m.status) ? `<button class="btn primary small" onclick="B.act('agenda.approve',{meetingId:'${m.id}'},'Agenda approved')">Approve agenda</button>` : ''}</div>
+      ${agendaApprovalNote(m)}
       <ol class="list">${m.agenda.map((it) => {
         const p = papers.find((x) => x.itemId === it.id);
         return `<li style="padding:10px 0;border-top:1px solid var(--line);display:flex;gap:10px">
@@ -343,6 +344,14 @@
     }
     html += `</div></div>`;
     return html;
+  }
+
+  function agendaApprovalNote(m) {
+    if (!['polling', 'scheduled'].includes(m.status)) return '';
+    const chair = uname(body(m.body).chair);
+    if (m.agendaApproved) return `<p class="faint">✓ Approved by ${esc(chair)} (Chair)${m.agendaApprovedAt ? ' on ' + fmtDT(m.agendaApprovedAt) : ''}.</p>`;
+    if (isChairOf(m)) return '<p class="faint">As Chair, your approval is needed before the Company Secretary can issue the notice.</p>';
+    return `<p class="faint" style="background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px">Only the Chair of this ${m.body === 'board' ? 'Board' : 'committee'}, ${esc(chair)}, can approve the agenda. The notice cannot be issued until they do.</p>`;
   }
 
   function pollCard(m) {
@@ -457,7 +466,7 @@
     let side;
     if (n.status === 'draft') {
       const ok = n.checks.every((c) => c.ok);
-      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${c.ok ? '✓' : '!'}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? ' · <a href="#/cs/members">Fix in members register</a>' : ''}${!c.ok && c.id === 'agenda' ? ` · <span class="faint">${esc(uname(body(m.body).chair))} must approve</span>` : ''}</div></div>`).join('')}
+      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${c.ok ? '✓' : '!'}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? ' · <a href="#/cs/members">Fix in members register</a>' : ''}</div></div>`).join('')}
         <label>Additional note on the notice (optional)</label><textarea id="noticeNote">${esc(n.note)}</textarea>
         <button class="btn small" style="margin-top:8px" onclick="B.saveNote('${n.id}')">Save note</button>
         <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">

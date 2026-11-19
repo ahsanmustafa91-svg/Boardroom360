@@ -91,7 +91,7 @@ function noticeChecks(state, n) {
   } else {
     checks.push({ id: 'period', ok: days !== null && days >= need, label: days === null ? `Notice period: ${need} days needed` : `Notice period: ${days} days before the meeting (at least ${need} needed)` });
   }
-  checks.push({ id: 'agenda', ok: !!m.agendaApproved, label: m.agendaApproved ? 'Agenda approved by the Chair' : 'Agenda not yet approved by the Chair' });
+  checks.push({ id: 'agenda', ok: !!m.agendaApproved, label: m.agendaApproved ? `Agenda approved by the Chair, ${user(state, b.chair).name}` : `Agenda not yet approved by the Chair, ${user(state, b.chair).name}` });
   const missing = b.members.map((id) => user(state, id)).filter((u) => !u.email || !u.mobile);
   checks.push({ id: 'contacts', ok: missing.length === 0, label: missing.length ? `Missing email or mobile: ${missing.map((u) => u.name).join(', ')}` : 'Every recipient has an email and mobile on file' });
   return checks;
@@ -202,7 +202,7 @@ const actions = {
   'agenda.approve'(s, u, { meetingId }) {
     const m = meeting(s, meetingId);
     if (body(s, m.body).chair !== u.id) fail('Only the Chair of this body can approve the agenda.', 403);
-    m.agendaApproved = true;
+    m.agendaApproved = true; m.agendaApprovedBy = u.id; m.agendaApprovedAt = nowIso();
     log(s, u, `Chair approved the agenda of ${m.title}.`);
   },
   'notice.draft'(s, u, { meetingId }) {
