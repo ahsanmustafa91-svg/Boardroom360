@@ -9,6 +9,13 @@ class MemoryStore {
   async init() { this.state = seed(); }
   async load() { return this.state; }
   async save(state) { this.state = state; }
+  // Apply a change: fn gets a private copy and returns a result; the copy becomes the new state.
+  async mutate(fn) {
+    const s = structuredClone(this.state);
+    const result = await fn(s);
+    this.state = s;
+    return result;
+  }
   async audit() {}
   async kind() { return 'memory'; }
 }
@@ -56,13 +63,40 @@ class PgStore {
       await this.save(this.cache);
     }
   }
-  async load() { return this.cache; }
+  // The database is the only source of truth, so every server instance (including the old
+  // and new one that overlap during a deploy) sees the same data. The cache only saves
+  // re-reading the JSON when the version has not changed.
+  async load() {
+    const v = await this.pool.query('SELECT version FROM tenant_state WHERE tenant_id=$1', [this.tenant]);
+    if (this.cache && v.rows[0] && v.rows[0].version === this.cache.version) return this.cache;
+    const r = await this.pool.query('SELECT data FROM tenant_state WHERE tenant_id=$1', [this.tenant]);
+    this.cache = r.rows[0].data;
+    return this.cache;
+  }
   async save(state) {
     await this.pool.query(
       `INSERT INTO tenant_state (tenant_id, version, data, updated_at) VALUES ($1,$2,$3,now())
        ON CONFLICT (tenant_id) DO UPDATE SET version=EXCLUDED.version, data=EXCLUDED.data, updated_at=now()`,
       [this.tenant, state.version, state]);
     this.cache = state;
+  }
+  // Apply a change inside a transaction with the row locked, so concurrent changes from any
+  // instance are applied one after another and none is lost.
+  async mutate(fn) {
+    const c = await this.pool.connect();
+    try {
+      await c.query('BEGIN');
+      const r = await c.query('SELECT data FROM tenant_state WHERE tenant_id=$1 FOR UPDATE', [this.tenant]);
+      const s = r.rows[0].data;
+      const result = await fn(s);
+      await c.query('UPDATE tenant_state SET version=$2, data=$3, updated_at=now() WHERE tenant_id=$1', [this.tenant, s.version, s]);
+      await c.query('COMMIT');
+      this.cache = s;
+      return result;
+    } catch (e) {
+      await c.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally { c.release(); }
   }
   async audit(userId, action, payload) {
     try {

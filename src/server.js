@@ -471,15 +471,14 @@ app.post('/api/otp', auth, wrap(async (req, res) => {
 app.post('/api/action', auth, wrap(async (req, res) => {
   const { type, payload } = req.body || {};
   const fn = actions[type]; if (!fn) fail('Unknown action');
-  const out = await withLock(async () => {
-    const s = structuredClone(await store.load());
-    const u = user(s, req.userId); if (!u) fail('Unknown user', 401);
+  let u;
+  const out = await withLock(() => store.mutate((s) => {
+    u = user(s, req.userId); if (!u) fail('Unknown user', 401);
     const result = fn(s, u, payload || {}) || {};
     s.version += 1;
-    await store.save(s);
-    if (!result.quiet) await store.audit(u.id, type, payload);
     return { ...result, version: s.version };
-  });
+  }));
+  if (!out.quiet) await store.audit(u.id, type, payload);
   res.json(out);
 }));
 
@@ -504,14 +503,14 @@ app.post('/api/ask', auth, wrap(async (req, res) => {
 }));
 
 app.post('/api/demo/reset', auth, wrap(async (req, res) => {
-  await withLock(async () => {
-    const s = await store.load();
-    const u = user(s, req.userId); requireStaff(u);
+  await withLock(() => store.mutate((s) => {
+    requireStaff(user(s, req.userId));
     const fresh = seed();
     fresh.version = s.version + 1;
-    await store.save(fresh);
-    await store.audit(u.id, 'demo.reset', {});
-  });
+    Object.keys(s).forEach((k) => delete s[k]);
+    Object.assign(s, fresh);
+  }));
+  await store.audit(req.userId, 'demo.reset', {});
   res.json({ ok: true });
 }));
 
