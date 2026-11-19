@@ -16,12 +16,24 @@ class MemoryStore {
 class PgStore {
   constructor(url) {
     const { Pool } = require('pg');
-    const ssl = /localhost|127\.0\.0\.1|\/var\/run/.test(url) || process.env.PGSSL === 'off' ? false : { rejectUnauthorized: false };
+    // Local and Render-internal hosts (no dot in the hostname, e.g. dpg-xxx-a) connect without TLS.
+    let host = '';
+    try { host = new URL(url).hostname; } catch (e) { /* socket path or unusual URL */ }
+    const local = !host || host === 'localhost' || host === '127.0.0.1' || !host.includes('.');
+    const ssl = local || process.env.PGSSL === 'off' ? false : { rejectUnauthorized: false };
     this.pool = new Pool({ connectionString: url, ssl, max: 5 });
     this.tenant = process.env.TENANT_ID || 'demo';
     this.cache = null;
   }
   async init() {
+    // A new database can take a minute or two to accept connections, so wait for it.
+    for (let i = 0; ; i++) {
+      try { await this.pool.query('SELECT 1'); break; } catch (e) {
+        if (i >= 30) throw e;
+        console.log(`Waiting for database (${e.code || e.message})…`);
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    }
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS tenant_state (
         tenant_id TEXT PRIMARY KEY,
