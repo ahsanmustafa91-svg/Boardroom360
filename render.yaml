@@ -4,17 +4,25 @@ services:
     runtime: node
     plan: free
     region: singapore
+    branch: claude/project-thread-4l3niu
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: DATABASE_URL
         fromDatabase:
           name: boardroom360-db
           property: connectionString
       - key: SESSION_SECRET
-        generateValue: true
+        sync: false
 databases:
   - name: boardroom360-db
-    plan: free
+    databaseName: boardroom360_db
+    user: boardroom360_db_user
+    plan: basic-256mb
+    diskSizeGB: 1
     region: singapore
+    postgresMajorVersion: "18"
+    ipAllowList: []

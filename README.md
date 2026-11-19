@@ -56,4 +56,4 @@ Each client is a separate `tenant_id`, which is the starting point for the multi
 
 ## Deploy on Render
 
-`render.yaml` defines a free web service and a free Postgres database. Render's free Postgres expires after 30 days and the free web service sleeps when idle (first visit takes about a minute).
+`render.yaml` defines the web service (free plan) and a Basic 256 MB Postgres database in Singapore (about $6 a month). The free web service sleeps when idle, so the first visit after a break takes about a minute.
