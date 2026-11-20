@@ -319,11 +319,62 @@ const actions = {
     m.attendance = Object.fromEntries(body(s, m.body).members.map((id) => [id, m.rsvps[id] === 'apologies' ? 'apologies' : 'absent']));
     log(s, u, `${m.title} started.`);
   },
-  'live.join'(s, u, { meetingId }) {
+  'live.join'(s, u, { meetingId, mode }) {
     const m = meeting(s, meetingId);
     if (m.status !== 'live') fail('The meeting is not live.');
-    if (!body(s, m.body).members.includes(u.id)) return;
-    if (m.attendance[u.id] !== 'present') m.attendance[u.id] = m.rsvps[u.id] === 'video' ? 'virtual' : 'present';
+    if (!body(s, m.body).members.includes(u.id)) fail('You are not a member of this body.', 403);
+    m.attendance[u.id] = mode === 'virtual' || (!mode && m.rsvps[u.id] === 'video') ? 'virtual' : 'present';
+    m.joinedAt = m.joinedAt || {};
+    m.joinedAt[u.id] = nowIso();
+    log(s, u, `${u.name} joined ${m.title}${m.attendance[u.id] === 'virtual' ? ' by video' : ' in the room'}.`);
+  },
+  'agendaVote.open'(s, u, { meetingId }) {
+    requireStaff(u);
+    const m = meeting(s, meetingId);
+    if (m.status !== 'live') fail('Not live');
+    if (m.agendaVote && m.agendaVote.status === 'open') fail('Agenda approval is already open.');
+    m.agendaVote = { status: 'open', votes: {}, openedAt: nowIso() };
+    log(s, u, `Members asked to approve the agenda of ${m.title}.`);
+  },
+  'agendaVote.respond'(s, u, { meetingId, choice }) {
+    const m = meeting(s, meetingId);
+    if (!m.agendaVote || m.agendaVote.status !== 'open') fail('Agenda approval is not open.');
+    if (!body(s, m.body).members.includes(u.id)) fail('Only members can approve the agenda.', 403);
+    if (!['present', 'virtual'].includes(m.attendance[u.id])) fail('Mark your attendance first.');
+    if (!['approve', 'object'].includes(choice)) fail('Bad choice');
+    m.agendaVote.votes[u.id] = choice;
+  },
+  'agendaVote.close'(s, u, { meetingId }) {
+    requireStaff(u);
+    const m = meeting(s, meetingId);
+    const av = m.agendaVote;
+    if (!av || av.status !== 'open') fail('Agenda approval is not open.');
+    const vs = Object.values(av.votes);
+    const ap = vs.filter((v) => v === 'approve').length; const ob = vs.length - ap;
+    av.status = ap > ob ? 'approved' : 'not_approved'; av.closedAt = nowIso();
+    log(s, u, `Agenda of ${m.title} ${av.status === 'approved' ? 'approved' : 'not approved'} at the meeting: ${ap} approve, ${ob} object.`);
+  },
+  'suggest.add'(s, u, { meetingId, itemId, text }) {
+    const m = meeting(s, meetingId);
+    if (m.status !== 'live') fail('Suggestions can be posted while the meeting is live.');
+    const staff = isStaff(u);
+    if (!staff && !body(s, m.body).members.includes(u.id)) fail('Only members can post suggestions.', 403);
+    if (!staff && !['present', 'virtual'].includes(m.attendance[u.id])) fail('Mark your attendance first.');
+    const t = String(text || '').trim().slice(0, 1000);
+    if (!t) fail('Write a suggestion first.');
+    const it = item(m, itemId);
+    it.suggestions = it.suggestions || [];
+    it.suggestions.push({ id: uid('sg'), by: u.id, text: t, at: nowIso(), status: 'open' });
+  },
+  'suggest.adopt'(s, u, { meetingId, itemId, id }) {
+    requireStaff(u);
+    const it = item(meeting(s, meetingId), itemId);
+    const sg = (it.suggestions || []).find((x) => x.id === id);
+    if (!sg) fail('Suggestion not found', 404);
+    if (sg.status === 'adopted') return;
+    sg.status = 'adopted';
+    const line = `${user(s, sg.by).name} suggested: ${sg.text}`;
+    it.discussion = it.discussion ? `${it.discussion}\n${line}` : line;
   },
   'live.attendance'(s, u, { meetingId, userId, status }) {
     requireStaff(u);

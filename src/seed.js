@@ -252,6 +252,11 @@ function draftMinutesText(m, users, bodies) {
   lines.push(`In attendance: ${name('u_cs')} (Company Secretary)`);
   lines.push('');
   lines.push(`The Chair, ${name(body.chair)}, called the meeting to order. The quorum was present.`);
+  if (m.agendaVote && m.agendaVote.status !== 'open') {
+    const vs = Object.values(m.agendaVote.votes || {});
+    const ap = vs.filter((v) => v === 'approve').length;
+    lines.push(`The agenda was ${m.agendaVote.status === 'approved' ? 'approved' : 'not approved'} by the members present (${ap} approve, ${vs.length - ap} object).`);
+  }
   lines.push('');
   m.agenda.forEach((it) => {
     lines.push(`${it.no}. ${it.title}`);

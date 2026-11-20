@@ -19,7 +19,8 @@ A board portal MVP for one demo client, **Demo Company Limited** (fictional). Di
 - Notices inbox: formal notices on the company letterhead, *Acknowledge receipt*, attendance reply, *Add to calendar* (.ics)
 - Meetings, agendas and papers, *Read entire pack*, private notes on each paper
 - Live meeting: follow the current item, join, vote For / Against / Abstain
-- Minutes, resolution register (searchable), archive, *Ask the record*
+- Live Meeting Room: members mark attendance (in the room or by video), approve the agenda live, vote, and post suggestions on each agenda item; the CS can add a suggestion to the minutes
+- Working papers, Minutes of the Meetings (includes the archive), resolution register (searchable), *Ask the record*
 
 **Company Secretary and CS Assistant**
 - Create a meeting with a date poll; confirming a date drafts the notice automatically

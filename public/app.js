@@ -191,43 +191,41 @@
   function navItems() {
     const u = me();
     const items = actionItems();
-    const inboxUnack = isStaff() ? 0 : myInbox().filter((n) => !n.recipients[u.id].acknowledgedAt).length;
+    const staff = isStaff();
+    const inboxUnack = staff ? 0 : myInbox().filter((n) => !n.recipients[u.id].acknowledgedAt).length;
     const draftCount = S.notices.filter((n) => n.status === 'draft').length;
-    if (isStaff()) return [
-      { href: '#/home', label: 'Home', icon: 'home', count: items.length, primary: true },
-      { href: '#/meetings', label: 'Meetings', icon: 'event', primary: true },
-      { sep: true },
-      { href: '#/cs/register', label: 'Notices', icon: 'mail', count: draftCount, primary: true },
-      { href: '#/cs/new', label: 'New meeting', icon: 'add_circle' },
-      { href: '#/cs/compliance', label: 'Compliance', icon: 'verified' },
-      { href: '#/cs/fees', label: 'Fees', icon: 'payments' },
-      u.role === 'cs' ? { href: '#/cs/users', label: 'Users', icon: 'group' } : { href: '#/cs/members', label: 'Members', icon: 'group' },
-      { href: '#/cs/activity', label: 'Activity', icon: 'history' },
-      { sep: true },
-      { href: '#/resolutions', label: 'Resolutions', icon: 'gavel', primary: true },
-      { href: '#/archive', label: 'Archive', icon: 'inventory_2' },
-      { href: '#/ask', label: 'Ask the record', icon: 'manage_search' },
-      { href: '#/cs/settings', label: 'Settings', icon: 'settings' },
-    ];
+    const liveCount = S.meetings.filter((m) => m.status === 'live' && (staff || isMember(m))).length;
+    const settingsMatch = staff ? ['cs/settings', 'cs/users', 'cs/members', 'cs/activity', 'cs/compliance', 'password'] : ['settings', 'password'];
     return [
       { href: '#/home', label: 'Home', icon: 'home', count: items.length, primary: true },
-      { href: '#/notices', label: 'Notices', icon: 'mail', count: inboxUnack, primary: true },
-      { href: '#/meetings', label: 'Meetings', icon: 'event', primary: true },
-      { href: '#/resolutions', label: 'Resolutions', icon: 'gavel', primary: true },
-      { href: '#/archive', label: 'Archive', icon: 'inventory_2' },
-      { href: '#/ask', label: 'Ask the record', icon: 'manage_search' },
-    ];
+      staff && { href: '#/cs/new', label: 'New Meeting', short: 'New', icon: 'add_circle' },
+      staff ? { href: '#/cs/register', label: 'Notices', icon: 'mail', count: draftCount, primary: true, match: ['cs/notice'] }
+        : { href: '#/notices', label: 'Notices', icon: 'mail', count: inboxUnack, primary: true, match: ['notice'] },
+      { href: '#/papers', label: 'Working papers', short: 'Papers', icon: 'description', match: ['paper', 'pack'] },
+      { href: '#/live', label: 'Live Meeting Room', short: 'Live', icon: 'cast_for_education', count: liveCount, primary: true, live: liveCount > 0 },
+      { href: '#/minutes', label: 'Minutes of the Meetings', short: 'Minutes', icon: 'history_edu', primary: true, match: ['archive'] },
+      { href: '#/resolutions', label: 'Resolutions', icon: 'gavel' },
+      staff && { href: '#/cs/fees', label: 'Fees', icon: 'payments' },
+      { href: '#/ask', label: 'Ask the record', short: 'Ask', icon: 'manage_search' },
+      { sep: true },
+      { href: staff ? '#/cs/settings' : '#/settings', label: 'Settings', icon: 'settings', match: settingsMatch },
+    ].filter(Boolean);
   }
   const ms = (name, cls) => `<span class="ms ${cls || ''}" aria-hidden="true">${name}</span>`;
 
+  function navActive(it, r) {
+    const paths = [it.href.slice(2)].concat(it.match || []);
+    return paths.some((p) => r === p || r.startsWith(p + '/'));
+  }
   function shell(content, route) {
     const u = me();
     const nav = navItems();
-    const isActive = (it) => route === it.href.slice(2) || route.startsWith(it.href.slice(2) + '/');
+    const isActive = (it) => navActive(it, route);
     const badge = (it) => (it.count ? `<span class="count">${it.count}</span>` : '');
-    const top = nav.map((it) => it.sep ? '<span class="sep" aria-hidden="true"></span>'
-      : `<a href="${it.href}" class="${isActive(it) ? 'active' : ''}" ${isActive(it) ? 'aria-current="page"' : ''}>${ms(it.icon, isActive(it) ? 'fill' : '')}${it.label}${badge(it)}</a>`).join('');
-    const railLink = (it) => `<a href="${it.href}" class="${isActive(it) ? 'active' : ''}" ${isActive(it) ? 'aria-current="page"' : ''}><span class="ind">${ms(it.icon)}${badge(it)}</span>${esc(it.label === 'Ask the record' ? 'Ask' : it.label === 'New meeting' ? 'New' : it.label)}</a>`;
+    const cur = (it) => (isActive(it) ? 'aria-current="page"' : '');
+    const drawer = nav.map((it) => it.sep ? '<span class="sep" aria-hidden="true"></span>'
+      : `<a href="${it.href}" class="item ${isActive(it) ? 'active' : ''}" ${cur(it)}>${ms(it.icon, isActive(it) ? 'fill' : '')}<span class="label">${esc(it.label)}</span>${badge(it)}</a>`).join('');
+    const railLink = (it) => `<a href="${it.href}" class="${isActive(it) ? 'active' : ''}" ${cur(it)}><span class="ind">${ms(it.icon)}${badge(it)}</span>${esc(it.short || it.label)}</a>`;
     const rail = nav.map((it) => (it.sep ? '<span class="sep" aria-hidden="true"></span>' : railLink(it))).join('');
     const primary = nav.filter((it) => it.primary);
     const rest = nav.filter((it) => !it.sep && !it.primary);
@@ -235,16 +233,17 @@
     const moreCount = rest.reduce((a, it) => a + (it.count || 0), 0);
     const bar = primary.map(railLink).join('') + `<a href="javascript:void 0" role="button" onclick="B.openMore()" class="${moreActive ? 'active' : ''}"><span class="ind">${ms('menu')}${moreCount ? `<span class="count">${moreCount}</span>` : ''}</span>More</a>`;
     return `
+      <nav class="drawer" aria-label="Main"><a class="logo" href="#/home"><div class="logo-mark">B360</div><div><span class="logo-text">Boardroom 360</span><small>${esc(S.company.name)}</small></div></a>${drawer}</nav>
       <aside class="rail" aria-label="Main"><a class="logo" href="#/home" aria-label="Home"><div class="logo-mark">B360</div></a>${rail}</aside>
       <div class="masthead">
       <header class="topbar">
         <a class="logo" href="#/home"><div class="logo-mark">B360</div><div><span class="logo-text">Boardroom 360</span><small>${esc(S.company.name)}</small></div></a>
+        <div class="tb-title">${esc(S.company.name)}</div>
         <div class="spacer"></div>
         <div class="who"><b>${esc(u.name)}</b><span>${esc(u.title)}</span></div>
         <a class="icon-btn" href="#/password" title="Change password" aria-label="Change password">${ms('key')}</a>
         <button class="icon-btn" onclick="B.signOut()" title="Sign out" aria-label="Sign out">${ms('logout')}</button>
       </header>
-      <nav class="nav" aria-label="Main"><div class="nav-inner">${top}</div></nav>
       </div>
       <div class="shell">
         <main>${content}</main>
@@ -255,7 +254,7 @@
     const r = route();
     const rest = navItems().filter((it) => !it.sep && !it.primary);
     $('#modal-root').innerHTML = `<div class="sheet-back" onclick="if(event.target===this)B.closeSheet()"><div class="sheet" role="dialog" aria-label="More"><div class="handle"></div>
-      ${rest.map((it) => { const a = r === it.href.slice(2) || r.startsWith(it.href.slice(2) + '/'); return `<a href="${it.href}" class="${a ? 'active' : ''}" onclick="B.closeSheet()">${ms(it.icon, a ? 'fill' : '')}${esc(it.label)}${it.count ? `<span class="count">${it.count}</span>` : ''}</a>`; }).join('')}
+      ${rest.map((it) => { const a = navActive(it, r); return `<a href="${it.href}" class="${a ? 'active' : ''}" onclick="B.closeSheet()">${ms(it.icon, a ? 'fill' : '')}${esc(it.label)}${it.count ? `<span class="count">${it.count}</span>` : ''}</a>`; }).join('')}
       <a href="#/password" onclick="B.closeSheet()">${ms('key')}Change password</a>
       <a href="javascript:void 0" onclick="B.closeSheet(); B.signOut()">${ms('logout')}Sign out</a>
     </div></div>`;
@@ -559,13 +558,71 @@
     </div>`;
   }
 
+  // ---- working papers ----
+  function papersView() {
+    const u = me();
+    const ms_ = S.meetings.filter((m) => papersOf(m.id).length && ['scheduled', 'live', 'polling', 'held'].includes(m.status))
+      .sort((a, b) => (a.status === 'live' ? -1 : 0) - (b.status === 'live' ? -1 : 0) || (a.date || '9999').localeCompare(b.date || '9999'));
+    const block = (m) => {
+      const ps = papersOf(m.id);
+      const unread = ps.filter((p) => !p.readBy[u.id]).length;
+      return `<div class="card flush"><div class="card-head" style="padding:16px 24px 8px"><div><h2 style="margin:0">${esc(m.title)}</h2><div class="faint">${m.date ? fmtDate(m.date) : 'Date to be fixed'} · ${ps.length} paper${ps.length > 1 ? 's' : ''}${!isStaff() && unread ? ` · ${unread} unread` : ''}</div></div><a class="btn small" href="#/pack/${m.id}">Read entire pack</a></div>
+        <ul class="list">${ps.map((p) => { const it = m.agenda.find((x) => x.id === p.itemId); const read = Object.keys(p.readBy).length; return `<li class="row action-row" onclick="location.hash='#/paper/${p.id}'"><div class="icon-dot">${ms('description')}</div>
+          <div class="grow"><div class="title">${esc(p.title)}</div><div class="faint">Item ${it ? it.no : '—'} · ${p.pages.length} page${p.pages.length > 1 ? 's' : ''}${isStaff() ? ` · read by ${read}` : ''}</div></div>
+          ${isStaff() ? '' : p.readBy[u.id] ? '<span class="chip ok">Read</span>' : '<span class="chip warn">Unread</span>'}</li>`; }).join('')}</ul></div>`;
+    };
+    return `<div class="page-head"><div><h1>Working papers</h1><p class="muted">Papers for upcoming and recent meetings, in agenda order. Past meetings' papers stay in Minutes of the Meetings.</p></div></div>
+      ${ms_.map(block).join('') || '<div class="card empty">No working papers yet.</div>'}`;
+  }
+
+  // ---- live meeting room (lobby) ----
+  function liveRoomView() {
+    const staff = isStaff();
+    const live = S.meetings.filter((m) => m.status === 'live' && (staff || isMember(m)));
+    const next = S.meetings.filter((m) => m.status === 'scheduled' && (staff || isMember(m))).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const liveCard = (m) => {
+      const present = Object.values(m.attendance).filter((x) => x === 'present' || x === 'virtual').length;
+      const it = m.agenda[m.liveItem] || m.agenda[0];
+      return `<div class="card live-lobby"><div class="card-head"><div><span class="chip bad" style="gap:4px">${ms('radio_button_checked', 'sm fill')} Live now</span><h2 style="margin:12px 0 4px">${esc(m.title)}</h2>
+        <div class="faint">${present} of ${body(m.body).members.length} in the room · quorum ${m.quorum} · now on item ${it.no}: ${esc(it.title)}</div></div>
+        <a class="btn primary" href="#/live/${m.id}">${ms('login')}${staff ? 'Open the room' : 'Join the meeting'}</a></div></div>`;
+    };
+    return `<div class="page-head"><div><h1>Live Meeting Room</h1><p class="muted">Join a meeting in progress. Attendance is marked when you join, the agenda is approved live, and every agenda item has a suggestions panel.</p></div></div>
+      ${live.map(liveCard).join('') || `<div class="card empty"><span class="ms" style="font-size:40px;color:var(--md-on-surface-variant)">event_available</span><h2>No meeting is live right now</h2><p class="muted">${staff ? 'Start a scheduled meeting below and members can join from here.' : 'When the Company Secretary starts a meeting, it appears here.'}</p></div>`}
+      ${next.length ? `<h2 style="margin:24px 0 12px">Scheduled</h2><div class="card flush"><ul class="list">${next.map((m) => `<li class="row"><div class="icon-dot">${esc(body(m.body).code)}</div><div class="grow"><div class="title">${esc(m.title)}</div><div class="faint">${fmtDate(m.date)}${m.time ? ' · ' + fmtTime(m.time) : ''} · ${esc(m.venue || '')}</div></div>
+        ${staff ? `<button class="btn small" onclick="B.startMeeting('${m.id}')">Start meeting</button>` : `<a class="btn small hide-sm" href="#/meeting/${m.id}">Details</a>`}</li>`).join('')}</ul></div>` : ''}`;
+  }
+
+  // ---- minutes of the meetings (includes the archive) ----
+  function minutesListView() {
+    const list = S.meetings.filter((m) => ['held', 'closed'].includes(m.status)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const st = (m) => { const s = m.minutes ? m.minutes.status : null; return s === 'signed' ? '<span class="chip ok">Signed</span>' : s === 'circulated' ? '<span class="chip brand">Out for signature</span>' : s === 'draft' ? '<span class="chip warn">Draft</span>' : '<span class="chip">No minutes</span>'; };
+    return `<div class="page-head"><div><h1>Minutes of the Meetings</h1><p class="muted">Minutes, papers and attendance for every meeting held, kept permanently.</p></div></div>
+      <div class="card flush table-wrap"><table><tr><th>Meeting</th><th>Held on</th><th class="hide-sm">Attendance</th><th>Minutes</th><th>Records</th></tr>
+      ${list.map((m) => { const at = Object.values(m.attendance || {}); return `<tr><td><b>${esc(m.title)}</b><div class="faint">${esc(body(m.body).name)}</div></td><td>${fmtDate(m.date)}</td><td class="hide-sm">${at.filter((x) => x === 'present' || x === 'virtual').length} of ${at.length}</td><td>${st(m)}</td>
+        <td><div class="btns">${m.minutes ? `<a class="btn small" href="#/minutes/${m.id}">Open</a>` : ''}${papersOf(m.id).length ? `<a class="btn small hide-sm" href="#/pack/${m.id}">Papers</a>` : ''}</div></td></tr>`; }).join('') || '<tr><td colspan="5" class="empty">No meetings held yet.</td></tr>'}
+      </table></div>`;
+  }
+
+  // ---- settings (tabs) ----
+  function settingsTabs(cur) {
+    const tabs = [['settings', 'General'], me().role === 'cs' ? ['users', 'Users'] : ['members', 'Members'], ['activity', 'Activity'], ['compliance', 'Compliance']];
+    return `<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<a href="#/cs/${k}" role="tab" class="${cur === k ? 'active' : ''}" ${cur === k ? 'aria-selected="true"' : ''}>${l}</a>`).join('')}</div>`;
+  }
+  function mySettingsView() {
+    const u = me();
+    return `<div class="page-head"><div><h1>Settings</h1></div></div>
+      <div class="card" style="max-width:640px"><h2>My profile</h2><dl class="kv"><dt>Name</dt><dd>${esc(u.name)}</dd><dt>Title</dt><dd>${esc(u.title)}</dd><dt>User ID</dt><dd class="mono">${esc(u.username || '')}</dd><dt>Email</dt><dd>${esc(u.email || '—')}</dd><dt>Mobile</dt><dd>${esc(u.mobile || '—')}</dd></dl>
+        <p class="faint">To change your contact details, ask the Company Secretary.</p><a class="btn" href="#/password">${ms('key')}Change password</a></div>`;
+  }
+
   // ---- live meeting ----
   function liveView(id) {
     const m = meeting(id);
     if (!m) return notFound();
     if (m.status !== 'live') return `<div class="card empty"><h2>${esc(m.title)}</h2><p>This meeting is not live${m.status === 'scheduled' ? ` yet. It is scheduled for ${fmtDate(m.date)}.` : '.'}</p><a class="btn" href="#/meeting/${m.id}">Back to meeting</a></div>`;
     const u = me();
-    if (isMember(m) && !['present', 'virtual'].includes(m.attendance[u.id])) setTimeout(() => act('live.join', { meetingId: m.id }), 0);
+    const joined = ['present', 'virtual'].includes(m.attendance[u.id]);
     const it = m.agenda[m.liveItem] || m.agenda[0];
     const b = body(m.body);
     const present = Object.values(m.attendance).filter((x) => x === 'present' || x === 'virtual').length;
@@ -574,7 +631,26 @@
     Object.values(it.votes || {}).forEach((v) => { t[v]++; });
     const voters = b.members.filter((x) => user(x).voting);
     const paper = papersOf(m.id).find((p) => p.itemId === it.id);
-    let main = `<div class="card live-item"><div class="faint">Item ${it.no} of ${m.agenda.length} · ${it.type === 'decision' ? 'For decision' : 'For information'} · presented by ${esc(uname(it.presenter))}</div>
+    let main = '';
+    if (isMember(m) && !joined) {
+      main += `<div class="card checkin"><h2>Mark your attendance</h2><p class="muted">Join to be counted for the quorum, approve the agenda, vote and post suggestions.</p>
+        <div class="btns"><button class="btn primary" onclick="B.join('${m.id}','present')">${ms('meeting_room')}I'm in the room</button><button class="btn tonal" onclick="B.join('${m.id}','virtual')">${ms('videocam')}Joining by video</button></div></div>`;
+    }
+    const av = m.agendaVote;
+    if (av || isStaff()) {
+      const at = { approve: 0, object: 0 };
+      Object.values((av && av.votes) || {}).forEach((v) => { at[v]++; });
+      const mineA = av && av.votes[u.id];
+      let ac = `<div class="card agenda-approval"><div class="card-head"><h2>Approval of the agenda</h2>${av ? (av.status === 'open' ? '<span class="chip warn">Open</span>' : av.status === 'approved' ? '<span class="chip ok">Approved</span>' : '<span class="chip bad">Not approved</span>') : ''}</div>`;
+      if (!av) ac += `<p class="muted">Ask the members present to approve the agenda before the business begins.</p><button class="btn primary" onclick="B.act('agendaVote.open',{meetingId:'${m.id}'},'Agenda approval is open')">${ms('how_to_vote')}Ask members to approve the agenda</button>`;
+      else {
+        ac += `<p class="faint">${at.approve} approve · ${at.object} object · ${present - Object.keys(av.votes).length > 0 ? present - Object.keys(av.votes).length : 0} present yet to respond${av.closedAt ? ' · closed ' + fmtDT(av.closedAt) : ''}</p>`;
+        if (av.status === 'open' && isMember(m) && joined) ac += `<div class="vote-btns"><button class="btn ${mineA === 'approve' ? 'sel' : ''}" onclick="B.act('agendaVote.respond',{meetingId:'${m.id}',choice:'approve'})">${ms('thumb_up')}Approve</button><button class="btn ${mineA === 'object' ? 'sel' : ''}" onclick="B.act('agendaVote.respond',{meetingId:'${m.id}',choice:'object'})">${ms('thumb_down')}Object</button></div>`;
+        if (av.status === 'open' && isStaff()) ac += `<div class="btns" style="margin-top:12px"><button class="btn primary" onclick="B.act('agendaVote.close',{meetingId:'${m.id}'},'Agenda approval recorded')">Close and record</button></div>`;
+      }
+      main += ac + '</div>';
+    }
+    main += `<div class="card live-item"><div class="faint">Item ${it.no} of ${m.agenda.length} · ${it.type === 'decision' ? 'For decision' : 'For information'} · presented by ${esc(uname(it.presenter))}</div>
       <h1 style="margin-top:6px">${esc(it.title)}</h1>
       ${it.resolutionText ? `<p class="body-large">${esc(it.resolutionText)}</p>` : ''}
       ${paper ? `<a class="btn small" href="#/paper/${paper.id}">Open paper</a>` : ''}
@@ -584,7 +660,7 @@
       main += `<div style="margin-top:16px"><div class="bar"><span style="width:${t.for / n * 100}%;background:var(--ok)"></span><span style="width:${t.against / n * 100}%;background:var(--bad)"></span><span style="width:${t.abstain / n * 100}%;background:var(--ink-3)"></span></div>
         <p class="faint" style="margin-top:6px">${t.for} for · ${t.against} against · ${t.abstain} abstained · ${voters.length - Object.keys(it.votes).length} yet to vote${it.voteOpen ? ' · <b style="color:var(--bad)">voting open</b>' : ''}</p></div>`;
     }
-    if (it.voteOpen && u.voting && isMember(m)) {
+    if (it.voteOpen && u.voting && isMember(m) && joined) {
       const mine = it.votes[u.id];
       main += `<h3 style="margin-top:16px">Your vote${mine ? ': <span style="color:var(--brand)">' + mine + '</span>' : ''}</h3><div class="vote-btns">
         <button class="btn ${mine === 'for' ? 'sel' : ''}" onclick="B.vote('${m.id}','${it.id}','for')">For</button>
@@ -592,6 +668,13 @@
         <button class="btn ${mine === 'abstain' ? 'sel' : ''}" onclick="B.vote('${m.id}','${it.id}','abstain')">Abstain</button></div>`;
     }
     main += '</div>';
+    const sugs = it.suggestions || [];
+    const canPost = isStaff() || (isMember(m) && joined);
+    main += `<div class="card suggestions"><div class="card-head"><h2>Suggestions on item ${it.no}</h2><span class="chip">${sugs.length}</span></div>
+      ${sugs.length ? `<ul class="list">${sugs.map((x) => `<li class="row" style="padding:12px 0;align-items:flex-start"><span class="avatar">${initials(uname(x.by))}</span><div class="grow"><div><b>${esc(uname(x.by))}</b> <span class="faint">${fmtDT(x.at)}</span></div><p style="margin:4px 0 0">${esc(x.text)}</p></div>
+        ${x.status === 'adopted' ? '<span class="chip ok">In the minutes</span>' : isStaff() ? `<button class="btn small" onclick="B.act('suggest.adopt',{meetingId:'${m.id}',itemId:'${it.id}',id:'${x.id}'},'Added to the minutes notes')">Add to minutes</button>` : ''}</li>`).join('')}</ul>` : '<p class="muted">No suggestions on this item yet.</p>'}
+      ${canPost ? `<form class="sugg-form" onsubmit="event.preventDefault(); B.suggest('${m.id}','${it.id}', this.t)"><textarea name="t" placeholder="Suggest a change or raise a point on this item…" maxlength="1000" style="min-height:72px"></textarea><div class="btns" style="margin-top:8px"><button class="btn primary">${ms('send')}Post suggestion</button></div></form>` : isMember(m) ? '<p class="faint">Mark your attendance to post a suggestion.</p>' : ''}
+    </div>`;
     if (isStaff()) {
       main += `<div class="card"><h2>Secretary's console</h2>
         <div class="btns">
@@ -605,10 +688,10 @@
         <button class="btn danger" onclick="B.endMeeting('${m.id}')">End meeting and draft minutes</button>
       </div>`;
     }
-    const side = `<div class="card"><h2>Agenda</h2><ul class="list agenda-list">${m.agenda.map((x, i) => `<li class="${i === m.liveItem ? 'current' : x.outcome ? 'done' : ''}"><span>${x.no}.</span><span style="flex:1">${esc(x.title)}</span>${x.outcome ? `<span class="chip ${OUTCOME[x.outcome][1]}">${OUTCOME[x.outcome][0]}</span>` : ''}</li>`).join('')}</ul></div>
+    const side = `<div class="card"><h2>Agenda</h2><ul class="list agenda-list">${m.agenda.map((x, i) => `<li class="${i === m.liveItem ? 'current' : x.outcome ? 'done' : ''}"><span>${x.no}.</span><span style="flex:1">${esc(x.title)}</span>${(x.suggestions || []).length ? `<span class="faint" style="display:inline-flex;align-items:center;gap:2px">${ms('forum', 'sm')}${x.suggestions.length}</span>` : ''}${x.outcome ? `<span class="chip ${OUTCOME[x.outcome][1]}">${OUTCOME[x.outcome][0]}</span>` : ''}</li>`).join('')}</ul></div>
       <div class="card"><div class="card-head"><h2>Attendance</h2><span class="chip ${quorate ? 'ok' : 'bad'}">${present} present · quorum ${m.quorum}</span></div>
-      <ul class="list">${b.members.map((x) => `<li class="row" style="padding:8px 0"><span class="avatar">${initials(uname(x))}</span><div class="grow">${esc(uname(x))}</div>
-        ${isStaff() ? `<select onchange="B.act('live.attendance',{meetingId:'${m.id}',userId:'${x}',status:this.value})" style="width:auto;padding:4px 8px">${['present', 'virtual', 'apologies', 'absent'].map((s) => `<option value="${s}" ${m.attendance[x] === s ? 'selected' : ''}>${s === 'virtual' ? 'By video' : s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>` : `<span class="chip ${['present', 'virtual'].includes(m.attendance[x]) ? 'ok' : ''}">${{ present: 'Present', virtual: 'By video', apologies: 'Apologies', absent: 'Not joined' }[m.attendance[x]] || '—'}</span>`}</li>`).join('')}</ul></div>`;
+      <ul class="list">${b.members.map((x) => `<li class="row" style="padding:8px 0"><span class="avatar">${initials(uname(x))}</span><div class="grow">${esc(uname(x))}${m.joinedAt && m.joinedAt[x] && ['present', 'virtual'].includes(m.attendance[x]) ? `<div class="faint">Joined ${fmtDT(m.joinedAt[x])}</div>` : ''}</div>
+        ${isStaff() ? `<select onchange="B.act('live.attendance',{meetingId:'${m.id}',userId:'${x}',status:this.value})" class="att">${['present', 'virtual', 'apologies', 'absent'].map((s) => `<option value="${s}" ${m.attendance[x] === s ? 'selected' : ''}>${s === 'virtual' ? 'By video' : s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>` : `<span class="chip ${['present', 'virtual'].includes(m.attendance[x]) ? 'ok' : ''}">${{ present: 'Present', virtual: 'By video', apologies: 'Apologies', absent: 'Not joined' }[m.attendance[x]] || '—'}</span>`}</li>`).join('')}</ul></div>`;
     return `<div class="banner live"><span style="display:flex;align-items:center;gap:8px">${ms('radio_button_checked', 'fill')} Live · ${esc(m.title)}</span>${m.videoLink ? `<a class="btn small" href="${esc(m.videoLink)}" target="_blank" rel="noopener">Video link</a>` : ''}</div>
       <div class="split"><div>${main}</div><div>${side}</div></div>`;
   }
@@ -645,13 +728,6 @@
       <input placeholder="Search resolutions, e.g. dividend" value="${esc(q)}" oninput="B.rsearch(this.value)" style="margin-bottom:14px">
       <div class="card flush">${list.map((r) => `<div class="row" style="align-items:flex-start"><div class="icon-dot">${esc(body(r.body).code)}</div><div class="grow"><div class="title">${esc(r.title)}</div><p class="muted" style="margin:4px 0">${esc(r.text)}</p>
         <div class="faint">${esc(r.ref)} · ${fmtDate(r.passedOn)} · ${r.tally.for} for, ${r.tally.against} against, ${r.tally.abstain} abstained · <a href="#/meeting/${r.meetingId}">meeting</a></div></div></div>`).join('') || '<div class="empty">No resolutions match.</div>'}</div>`;
-  }
-  function archiveView() {
-    const list = S.meetings.filter((m) => m.status === 'closed').sort((a, b) => b.date.localeCompare(a.date));
-    return `<div class="page-head"><div><h1>Archive</h1><p class="muted">Signed minutes, papers and attendance for every past meeting, kept permanently.</p></div></div>
-      <div class="card flush table-wrap"><table><tr><th>Meeting</th><th>Date</th><th class="hide-sm">Attendance</th><th>Records</th></tr>
-      ${list.map((m) => { const at = Object.values(m.attendance); return `<tr><td><b>${esc(m.title)}</b><div class="faint">${esc(body(m.body).name)}</div></td><td>${fmtDate(m.date)}</td><td class="hide-sm">${at.filter((x) => x === 'present' || x === 'virtual').length} of ${at.length}</td><td><div class="btns"><a class="btn small" href="#/minutes/${m.id}">Minutes</a>${papersOf(m.id).length ? `<a class="btn small" href="#/pack/${m.id}">Papers</a>` : ''}</div></td></tr>`; }).join('') || '<tr><td colspan="4" class="empty">Nothing archived yet.</td></tr>'}
-      </table></div>`;
   }
   let lastAsk = null;
   function askView() {
@@ -758,8 +834,7 @@
       <div class="card flush"><ul class="list">${S.activity.map((a) => `<li class="row"><div class="grow">${esc(a.text)}<div class="faint">${fmtDT(a.at)} · ${esc(a.who === 'system' ? 'System' : uname(a.who))}</div></div></li>`).join('')}</ul></div>`;
   }
   function csSettingsView() {
-    return `<div class="page-head"><div><h1>Settings</h1></div></div>
-      <div class="card" style="max-width:640px"><h2>Company</h2><dl class="kv"><dt>Name</dt><dd>${esc(S.company.name)}</dd><dt>Registration</dt><dd>${esc(S.company.regNo)}</dd><dt>Address</dt><dd>${esc(S.company.address)}</dd></dl>
+    return `<div class="card" style="max-width:640px"><h2>Company</h2><dl class="kv"><dt>Name</dt><dd>${esc(S.company.name)}</dd><dt>Registration</dt><dd>${esc(S.company.regNo)}</dd><dt>Address</dt><dd>${esc(S.company.address)}</dd></dl>
         <label>Rule pack</label><select onchange="B.act('settings.rulePack',{rulePack:this.value},'Rule pack updated')" ${me().role !== 'cs' ? 'disabled' : ''}>${Object.entries(S.rulePacks).map(([k, v]) => `<option value="${k}" ${k === S.company.rulePack ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
         <p class="faint" style="margin-top:6px">Sets the notice period, quorum and filing rules. Pakistan's Companies Act 2017 and SECP rules are the default.</p></div>
       <div class="card" style="max-width:640px"><h2>Demo data</h2><p class="muted">Put every meeting, notice, vote and signature back to the starting demo. Everyone testing sees the reset.</p><button class="btn danger" onclick="B.resetDemo()">Reset demo data</button></div>`;
@@ -784,10 +859,12 @@
     else if (a === 'notice') v = noticeView(b);
     else if (a === 'paper') v = paperView(b);
     else if (a === 'pack') v = packView(b);
-    else if (a === 'live') v = liveView(b);
-    else if (a === 'minutes') v = minutesView(b);
+    else if (a === 'live') v = b ? liveView(b) : liveRoomView();
+    else if (a === 'papers') v = papersView();
+    else if (a === 'settings') v = mySettingsView();
+    else if (a === 'minutes') v = b ? minutesView(b) : minutesListView();
     else if (a === 'resolutions') v = resolutionsView();
-    else if (a === 'archive') v = archiveView();
+    else if (a === 'archive') v = minutesListView();
     else if (a === 'ask') v = askView();
     else if (a === 'cs' && b === 'notice') v = csNoticeView(c);
     else if (a === 'cs' && b === 'register') v = csRegisterView();
@@ -800,6 +877,9 @@
     else if (a === 'cs' && b === 'activity') v = csActivityView();
     else if (a === 'cs' && b === 'settings') v = csSettingsView();
     else v = notFound();
+    if (a === 'cs' && ['settings', 'activity', 'compliance', 'members'].concat(me().role === 'cs' && !c ? ['users'] : []).includes(b) && isStaff()) {
+      v = `<div class="page-head"><div><h1>Settings</h1></div></div>${settingsTabs(b)}` + v.replace('<h1>', '<h2 class="headline-small">').replace('</h1>', '</h2>');
+    }
     app.innerHTML = shell(v, r);
   }
   window.addEventListener('hashchange', () => { navOpen = false; render(); window.scrollTo(0, 0); });
@@ -884,6 +964,8 @@
       act('agenda.add', Object.assign({ meetingId }, v), 'Item added');
     },
     removeItem(meetingId, itemId) { act('agenda.remove', { meetingId, itemId }, 'Item removed'); },
+    join(meetingId, mode) { act('live.join', { meetingId, mode }, mode === 'virtual' ? 'You are marked as joining by video' : 'You are marked present'); },
+    suggest(meetingId, itemId, el) { const text = el.value.trim(); if (!text) return; act('suggest.add', { meetingId, itemId, text }, 'Suggestion posted').then(() => { el.value = ''; }); },
     startMeeting(meetingId) { act('live.start', { meetingId }, 'Meeting started').then(() => { location.hash = '#/live/' + meetingId; }); },
     endMeeting(meetingId) {
       promptModal('End the meeting?', [], () => act('live.end', { meetingId }, 'Meeting ended. Minutes drafted.').then(() => { location.hash = '#/minutes/' + meetingId; }));
