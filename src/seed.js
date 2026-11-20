@@ -1,7 +1,14 @@
 // Demo data for "Demo Company Limited". Everything here is fictional.
 'use strict';
+const { ensureCredentials } = require('./auth');
 
 function seed() {
+  const state = buildSeed();
+  ensureCredentials(state);
+  return state;
+}
+
+function buildSeed() {
   const users = [
     { id: 'u_chair', name: 'Tariq Hameed', title: 'Chairman', role: 'chairman', email: 'tariq.hameed@democo.pk', mobile: '+92 300 1112233', voting: true },
     { id: 'u_d1', name: 'Ayesha Siddiqui', title: 'Independent Director', role: 'director', email: 'ayesha.siddiqui@democo.pk', mobile: '+92 321 4455667', voting: true },

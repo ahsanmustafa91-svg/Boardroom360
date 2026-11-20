@@ -2,7 +2,15 @@
 
 The digital boardroom. Made in Pakistan, for Pakistan.
 
-A board portal MVP for one demo client, **Demo Company Limited** (fictional). Directors, the Chairman, the CEO, the Company Secretary and the CS Assistant sign in with a one-time code and share one live record of notices, date polls, papers, votes, minutes and resolutions.
+A board portal MVP for one demo client, **Demo Company Limited** (fictional). Directors, the Chairman, the CEO, the Company Secretary and the CS Assistant sign in with a user ID, a password and a one-time code, and share one live record of notices, date polls, papers, votes, minutes and resolutions.
+
+## Sign-in and users
+
+- Sign-in: user ID and password, then a one-time code sent to the registered mobile. Five wrong passwords lock the user ID for 15 minutes.
+- Passwords are stored as salted scrypt hashes and never sent to the browser.
+- The **Company Secretary is the admin** (Users page): add users with a temporary password, edit name, title, role, contact details, voting and Board/committee membership, choose each body's Chair, reset passwords and deactivate or reactivate users. Resetting a password or deactivating a user signs them out everywhere. New and reset users must choose their own password at first sign-in.
+- Everyone can change their own password (Password, top right).
+- Demo user IDs are `firstname.lastname` (e.g. `sana.javed`, `tariq.hameed`, `farah.naz`) with the starter password `Board@360` (override with `DEMO_PASSWORD`). *Reset demo data* restores them.
 
 ## What's in it
 
@@ -20,6 +28,7 @@ A board portal MVP for one demo client, **Demo Company Limited** (fictional). Di
 - Live meeting console: attendance, quorum, open and close votes, discussion notes, end meeting
 - Minutes drafted from the meeting, edited, circulated and signed by the Chair and the Company Secretary with one-time codes, then sealed
 - Compliance tracker, directors' meeting fees (from attendance), members register, activity log
+- Users (Company Secretary only): see *Sign-in and users*
 - Settings: rule pack (Companies Act 2017: listed / private / public sector), reset demo data
 
 ## Demo mode

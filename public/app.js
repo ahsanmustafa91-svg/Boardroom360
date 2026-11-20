@@ -155,28 +155,31 @@
         <div><span class="pk"><span class="flag"></span> Made in Pakistan, for Pakistan</span></div>
       </section>
       <section class="panel" id="signin-panel">
-        ${pendingUser ? otpPanel(pendingUser) : pickPanel()}
+        ${pendingUser ? otpPanel(pendingUser) : passwordPanel()}
       </section>
     </div>`;
   }
-  let demoUsers = null;
-  function pickPanel() {
-    if (!demoUsers) {
-      api('/api/demo-users').then((d) => { demoUsers = d; render(); }).catch((e) => toast(e.message, true));
-      return '<p class="muted">Loading…</p>';
+  let companyName = null;
+  function passwordPanel() {
+    if (companyName === null) {
+      companyName = '';
+      api('/api/company').then((d) => { companyName = d.company; render(); }).catch(() => {});
     }
     return `
       <h1>Sign in</h1>
-      <p class="muted">${esc(demoUsers.company)} · demo. Choose who you are; we will send a one-time code to your mobile.</p>
-      <div class="user-pick">
-        ${demoUsers.users.map((u) => `<button onclick="B.requestLogin('${u.id}')"><span class="avatar">${initials(u.name)}</span><span style="flex:1"><b>${esc(u.name)}</b><br><span class="faint">${esc(u.title)}</span></span><span class="chip">${ROLE[u.role]}</span></button>`).join('')}
-      </div>
-      <p class="faint" style="margin-top:16px">Demo mode: SMS codes are shown on screen instead of being sent.</p>`;
+      <p class="muted">${esc(companyName || 'Your company')} board portal. Sign in with the user ID and password the Company Secretary gave you.</p>
+      <form onsubmit="event.preventDefault(); B.passwordLogin(this)" style="margin-top:8px">
+        <label for="li-user">User ID</label><input id="li-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+        <label for="li-pass">Password</label><input id="li-pass" name="password" type="password" autocomplete="current-password" required>
+        <button class="btn primary big" style="width:100%;margin-top:18px">Continue</button>
+      </form>
+      <p class="faint" style="margin-top:16px">After your password we send a one-time code to your registered mobile. Forgotten your password? Ask the Company Secretary to reset it.</p>
+      <p class="faint">Demo mode: SMS codes are shown on screen instead of being sent.</p>`;
   }
   function otpPanel(p) {
     return `
       <h1>Enter your code</h1>
-      <p class="muted">We sent a 6-digit code to ${esc(p.to)}. Only you can sign in.</p>
+      <p class="muted">${p.name ? `Welcome, ${esc(p.name)}. ` : ''}We sent a 6-digit code to ${esc(p.to)}.</p>
       <div class="sms"><small>Simulated SMS · Boardroom 360</small>Your Boardroom 360 sign-in code is <b>${esc(p.code)}</b>. It expires in 5 minutes.</div>
       <form onsubmit="event.preventDefault(); B.verifyLogin()">
         <input id="otp" class="otp-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" autofocus>
@@ -198,7 +201,7 @@
         ${link('#/cs/new', 'New meeting')}
         ${link('#/cs/compliance', 'Compliance')}
         ${link('#/cs/fees', 'Fees')}
-        ${link('#/cs/members', 'Members')}
+        ${me().role === 'cs' ? link('#/cs/users', 'Users') : link('#/cs/members', 'Members')}
         ${link('#/cs/activity', 'Activity')}
         <div class="sep">Records</div>
         ${link('#/resolutions', 'Resolutions')}
@@ -217,6 +220,7 @@
         <a class="logo" href="#/home"><div class="logo-mark">B360</div><div>Boardroom 360<small>${esc(S.company.name)}</small></div></a>
         <div class="spacer"></div>
         <div class="who"><b>${esc(u.name)}</b><span class="faint">${esc(u.title)}</span></div>
+        <a class="btn small" href="#/password">Password</a>
         <button class="btn small" onclick="B.signOut()">Sign out</button>
       </header>
       <nav class="nav" aria-label="Main"><div class="nav-inner">${nav}</div></nav>
@@ -467,7 +471,7 @@
     let side;
     if (n.status === 'draft') {
       const ok = n.checks.every((c) => c.ok);
-      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${c.ok ? '✓' : '!'}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? ' · <a href="#/cs/members">Fix in members register</a>' : ''}</div></div>`).join('')}
+      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${c.ok ? '✓' : '!'}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? (me().role === 'cs' ? ' · <a href="#/cs/users">Fix in Users</a>' : ' · <a href="#/cs/members">Fix in Members</a>') : ''}</div></div>`).join('')}
         <label>Additional note on the notice (optional)</label><textarea id="noticeNote">${esc(n.note)}</textarea>
         <button class="btn small" style="margin-top:8px" onclick="B.saveNote('${n.id}')">Save note</button>
         <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
@@ -665,6 +669,59 @@
         <td><button class="btn small" onclick="B.saveMember('${u.id}')">Save</button></td></tr>`).join('')}
       </table></div>`;
   }
+  const ROLE_OPTS = [['chairman', 'Chairman'], ['director', 'Director'], ['ceo', 'CEO'], ['cs', 'Company Secretary'], ['csa', 'CS Assistant']];
+  function usersView() {
+    const list = S.users.slice().sort((a, b) => (b.active !== false) - (a.active !== false) || ROLE_OPTS.findIndex((r) => r[0] === a.role) - ROLE_OPTS.findIndex((r) => r[0] === b.role));
+    return `<div class="page-head"><div><h1>Users</h1><p class="muted">Who can sign in, what they can do, and which Board and committees they sit on. Only the Company Secretary manages users.</p></div><a class="btn primary" href="#/cs/users/new">Add user</a></div>
+      <div class="card flush table-wrap"><table><tr><th>Name</th><th>User ID</th><th>Role</th><th class="hide-sm">Board and committees</th><th class="hide-sm">Contact</th><th>Status</th></tr>
+      ${list.map((u) => `<tr class="action-row" onclick="location.hash='#/cs/users/${u.id}'"><td><a href="#/cs/users/${u.id}"><b>${esc(u.name)}</b></a><div class="faint">${esc(u.title)}</div></td>
+        <td class="mono">${esc(u.username || '')}</td><td>${ROLE[u.role]}${u.voting ? '' : ' <span class="faint">· no vote</span>'}</td>
+        <td class="hide-sm faint">${S.bodies.filter((b) => b.members.includes(u.id)).map((b) => b.code + (b.chair === u.id ? ' (Chair)' : '')).join(', ') || '—'}</td>
+        <td class="hide-sm faint">${esc(u.email || '—')}<br>${u.mobile ? esc(u.mobile) : '<span style="color:var(--bad)">No mobile</span>'}</td>
+        <td>${u.active === false ? '<span class="chip">Deactivated</span>' : u.mustChange ? '<span class="chip warn">Must set password</span>' : '<span class="chip ok">Active</span>'}</td></tr>`).join('')}
+      </table></div>
+      <div class="card"><h2>Chairs</h2><p class="muted">The Chair approves the agenda and signs the minutes.</p>
+        ${S.bodies.map((b) => `<label>${esc(b.name)}</label><select onchange="B.act('body.setChair',{bodyId:'${b.id}',userId:this.value},'Chair updated')">${S.users.filter((u) => u.active !== false && !['cs', 'csa'].includes(u.role)).map((u) => `<option value="${u.id}" ${b.chair === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`).join('')}
+      </div>`;
+  }
+  function userFormView(id) {
+    const isNew = id === 'new';
+    const u = isNew ? { name: '', title: '', role: 'director', email: '', mobile: '', voting: true, username: '' } : S.users.find((x) => x.id === id);
+    if (!u) return notFound();
+    const self = u.id === me().id;
+    return `<div class="page-head"><div><a href="#/cs/users" class="faint">← Users</a><h1>${isNew ? 'Add user' : esc(u.name)}</h1>${!isNew ? (u.active === false ? '<span class="chip">Deactivated</span>' : '<span class="chip ok">Active</span>') : ''}</div></div>
+      <div class="split">
+      <form class="card" id="userForm" onsubmit="event.preventDefault(); B.saveUser('${isNew ? '' : u.id}', this)">
+        <div class="grid2"><div><label>Full name</label><input name="name" value="${esc(u.name)}" required></div><div><label>Title</label><input name="title" value="${esc(u.title)}" placeholder="e.g. Independent Director"></div></div>
+        <div class="grid2"><div><label>Role</label><select name="role" ${self ? 'disabled' : ''}>${ROLE_OPTS.map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+          <div><label>User ID</label><input name="username" value="${esc(u.username)}" placeholder="${isNew ? 'Leave blank to create from the name' : ''}" autocapitalize="none" spellcheck="false"></div></div>
+        <div class="grid2"><div><label>Email</label><input name="email" type="email" value="${esc(u.email)}"></div><div><label>Mobile (for sign-in codes and notices)</label><input name="mobile" value="${esc(u.mobile)}" placeholder="+92 3xx xxxxxxx"></div></div>
+        <label><input type="checkbox" name="voting" ${u.voting ? 'checked' : ''} style="width:auto;margin-right:6px">Has a vote at meetings (not used for the Company Secretary's office)</label>
+        <label>Board and committees</label>
+        ${S.bodies.map((b) => `<label style="font-weight:500;color:var(--ink);margin:6px 0"><input type="checkbox" name="body_${b.id}" ${!isNew && b.members.includes(u.id) ? 'checked' : ''} style="width:auto;margin-right:6px">${esc(b.name)}${b.chair === u.id ? ' <span class="chip brand">Chair</span>' : ''}</label>`).join('')}
+        ${isNew ? `<label>Temporary password</label><div class="btns"><input name="password" id="newPw" value="${tempPassword()}" style="flex:1" class="mono"><button type="button" class="btn" onclick="document.getElementById('newPw').value=B.tempPassword()">New</button></div><p class="faint">Give this to the user. They must choose their own password the first time they sign in.</p>` : ''}
+        <button class="btn primary big" style="margin-top:16px">${isNew ? 'Add user' : 'Save changes'}</button>
+      </form>
+      <div>${isNew ? '' : `<div class="card"><h2>Password</h2><p class="muted">${u.mustChange ? 'Waiting for them to set their own password.' : 'They have set their own password.'}</p><button class="btn" onclick="B.resetPassword('${u.id}')">Reset password</button><p class="faint" style="margin-top:8px">Resetting signs them out everywhere and gives them a temporary password.</p></div>
+        ${self ? '' : `<div class="card"><h2>Access</h2>${u.active === false ? `<p class="muted">This user cannot sign in.</p><button class="btn" onclick="B.act('user.setActive',{userId:'${u.id}',active:true},'User reactivated')">Reactivate</button><p class="faint" style="margin-top:8px">Add them back to the Board or committees above after reactivating.</p>` : `<p class="muted">Deactivating stops them signing in and removes them from the Board and committees. Their past records stay.</p><button class="btn danger" onclick="B.deactivate('${u.id}')">Deactivate</button>`}</div>`}`}
+      </div></div>`;
+  }
+  function tempPassword() {
+    const w = 'abcdefghjkmnpqrstuvwxyz', d = '23456789';
+    let p = '';
+    for (let i = 0; i < 6; i++) p += w[Math.floor(Math.random() * w.length)];
+    return p[0].toUpperCase() + p.slice(1) + '-' + d[Math.floor(Math.random() * d.length)] + d[Math.floor(Math.random() * d.length)] + d[Math.floor(Math.random() * d.length)];
+  }
+  function passwordView(forced) {
+    return `<div class="page-head"><div><h1>${forced ? 'Choose your password' : 'Change password'}</h1><p class="muted">${forced ? 'You signed in with a temporary password. Choose your own before you continue.' : `Signed in as <span class="mono">${esc(me().username)}</span>.`}</p></div></div>
+      <form class="card" style="max-width:480px" onsubmit="event.preventDefault(); B.changePassword(this)">
+        <label>${forced ? 'Temporary password' : 'Current password'}</label><input name="current" type="password" autocomplete="current-password" required>
+        <label>New password</label><input name="next" type="password" autocomplete="new-password" required>
+        <label>New password again</label><input name="again" type="password" autocomplete="new-password" required>
+        <p class="faint" style="margin-top:8px">At least 8 characters, with letters and at least one number.</p>
+        <div class="btns" style="margin-top:12px"><button class="btn primary">Save password</button>${forced ? '<button type="button" class="btn" onclick="B.signOut()">Sign out</button>' : ''}</div>
+      </form>`;
+  }
   function csActivityView() {
     return `<div class="page-head"><div><h1>Activity log</h1><p class="muted">Every action is also written to a permanent audit table in the database.</p></div></div>
       <div class="card flush"><ul class="list">${S.activity.map((a) => `<li class="row"><div class="grow">${esc(a.text)}<div class="faint">${fmtDT(a.at)} · ${esc(a.who === 'system' ? 'System' : uname(a.who))}</div></div></li>`).join('')}</ul></div>`;
@@ -687,7 +744,8 @@
     const [a, b, c] = r.split('/');
     const staffOnly = { cs: true };
     let v;
-    if (staffOnly[a] && !isStaff()) v = notFound();
+    if (me().mustChange) v = passwordView(true);
+    else if (staffOnly[a] && !isStaff()) v = notFound();
     else if (a === 'home') v = homeView();
     else if (a === 'meetings') v = meetingsView(b);
     else if (a === 'meeting') v = meetingView(b);
@@ -706,6 +764,8 @@
     else if (a === 'cs' && b === 'compliance') v = csComplianceView();
     else if (a === 'cs' && b === 'fees') v = csFeesView();
     else if (a === 'cs' && b === 'members') v = csMembersView();
+    else if (a === 'cs' && b === 'users' && me().role === 'cs') v = c ? userFormView(c) : usersView();
+    else if (a === 'password') v = passwordView();
     else if (a === 'cs' && b === 'activity') v = csActivityView();
     else if (a === 'cs' && b === 'settings') v = csSettingsView();
     else v = notFound();
@@ -734,6 +794,10 @@
     $('#pCancel').onclick = closeModal;
     $('#pForm').onsubmit = async (e) => { e.preventDefault(); const v = Object.fromEntries(new FormData(e.target)); try { await onOk(v); closeModal(); } catch (err) { /* toast shown */ } };
   }
+  function showInfo(title, html) {
+    $('#modal-root').innerHTML = `<div class="modal-back"><div class="modal"><h2>${esc(title)}</h2>${html}<div class="btns" style="margin-top:14px"><button class="btn primary" id="iOk" style="flex:1">Done</button></div></div></div>`;
+    $('#iOk').onclick = closeModal;
+  }
   function closeModal() { $('#modal-root').innerHTML = ''; render(); }
 
   // ---------------- handlers ----------------
@@ -743,10 +807,10 @@
     signOut,
     toggleNav() { navOpen = !navOpen; render(); },
     closeNav() { if (navOpen) { navOpen = false; } },
-    async requestLogin(userId) {
+    async passwordLogin(f) {
       try {
-        const d = await api('/api/login/request', { userId });
-        store.set('b360.pending', JSON.stringify({ userId, to: d.simulatedSms.to, code: d.simulatedSms.code }));
+        const d = await api('/api/login/password', { username: f.username.value, password: f.password.value });
+        store.set('b360.pending', JSON.stringify({ userId: d.userId, name: d.name, to: d.simulatedSms.to, code: d.simulatedSms.code }));
         render();
         setTimeout(() => { const el = $('#otp'); if (el) el.focus(); }, 50);
       } catch (e) { toast(e.message, true); }
@@ -807,6 +871,38 @@
       const v = Object.fromEntries(new FormData(f));
       act('meeting.create', { bodyId: v.bodyId, options: [v.d1, v.d2, v.d3], closesOn: v.closesOn, venue: v.venue, videoLink: v.videoLink, time: v.time }, 'Meeting created. Members can now answer the poll.')
         .then((r) => { location.hash = '#/meeting/' + r.meetingId; });
+    },
+    tempPassword,
+    saveUser(id, f) {
+      const v = Object.fromEntries(new FormData(f));
+      const p = { name: v.name, title: v.title, email: v.email, mobile: v.mobile, username: v.username, voting: !!v.voting, bodies: S.bodies.filter((b) => v['body_' + b.id]).map((b) => b.id) };
+      if (f.role && !f.role.disabled) p.role = v.role;
+      if (!id) {
+        p.password = v.password;
+        act('user.create', p).then((r) => {
+          location.hash = '#/cs/users';
+          showInfo('User added', `<p>Give ${esc(v.name)} these sign-in details:</p><div class="sms"><small>Sign-in details</small>User ID <b>${esc(r.username)}</b><br>Temporary password <b>${esc(v.password)}</b></div><p class="faint">They will choose their own password the first time they sign in.</p>`);
+        }).catch(() => {});
+      } else act('user.update', Object.assign({ userId: id }, p), 'Saved').catch(() => {});
+    },
+    resetPassword(id) {
+      const pw = tempPassword();
+      const u = S.users.find((x) => x.id === id);
+      promptModal(`Reset password for ${u.name}?`, [], () => act('user.resetPassword', { userId: id, password: pw }).then(() => {
+        setTimeout(() => showInfo('Password reset', `<div class="sms"><small>New sign-in details</small>User ID <b>${esc(u.username)}</b><br>Temporary password <b>${esc(pw)}</b></div><p class="faint">${id === me().id ? 'Use it next time you sign in.' : 'They will choose their own password when they next sign in.'}</p>`), 50);
+      }));
+    },
+    deactivate(id) {
+      const u = S.users.find((x) => x.id === id);
+      promptModal(`Deactivate ${u.name}?`, [], () => act('user.setActive', { userId: id, active: false }, 'User deactivated'));
+    },
+    async changePassword(f) {
+      if (f.next.value !== f.again.value) return toast('The two new passwords do not match.', true);
+      try {
+        const d = await api('/api/password', { current: f.current.value, next: f.next.value });
+        token = d.token; store.set('b360.token', token);
+        await refresh(true); toast('Password saved'); location.hash = '#/home'; render();
+      } catch (e) { toast(e.message, true); }
     },
     saveMember(userId) { act('member.update', { userId, email: $('#em-' + userId).value, mobile: $('#mo-' + userId).value }, 'Saved'); },
     rsearch(q) { try { sessionStorage.setItem('b360.rq', q); } catch (e) { /* ignore */ } const pos = q.length; render(); const el = document.querySelector('main input'); if (el) { el.focus(); el.setSelectionRange(pos, pos); } },

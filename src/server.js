@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { createStore } = require('./store');
 const { seed, tally, ordinal, fmtDate, draftMinutesText, fillItem } = require('./seed');
+const { hashPassword, checkPassword, validatePassword, suggestUsername, ensureCredentials } = require('./auth');
 
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
@@ -21,21 +22,23 @@ const uid = (p) => `${p}_${crypto.randomBytes(5).toString('hex')}`;
 const isStaff = (u) => u.role === 'cs' || u.role === 'csa';
 const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
 
-function sign(userId) {
+// Tokens carry the user's credential generation, so a password reset or deactivation
+// signs that user out everywhere.
+function sign(userId, gen) {
   const exp = Date.now() + 12 * 3600 * 1000;
-  const body = `${userId}.${exp}`;
+  const body = `${userId}.${gen || 0}.${exp}`;
   const mac = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
   return `${body}.${mac}`;
 }
 function verify(token) {
   if (!token) return null;
   const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [userId, exp, mac] = parts;
-  const good = crypto.createHmac('sha256', SECRET).update(`${userId}.${exp}`).digest('base64url');
+  if (parts.length !== 4) return null;
+  const [userId, gen, exp, mac] = parts;
+  const good = crypto.createHmac('sha256', SECRET).update(`${userId}.${gen}.${exp}`).digest('base64url');
   if (mac.length !== good.length || !crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(good))) return null;
   if (Date.now() > Number(exp)) return null;
-  return userId;
+  return { userId, gen: Number(gen) };
 }
 
 // One-time codes (simulated SMS). Kept in memory; they expire after 5 minutes.
@@ -67,6 +70,24 @@ function meeting(state, id) { const m = state.meetings.find((x) => x.id === id);
 function notice(state, id) { const n = state.notices.find((x) => x.id === id); if (!n) fail('Notice not found', 404); return n; }
 function item(m, id) { const i = m.agenda.find((x) => x.id === id); if (!i) fail('Agenda item not found', 404); return i; }
 function requireStaff(u) { if (!isStaff(u)) fail('Only the Company Secretary\'s office can do this.', 403); }
+const ROLES = ['chairman', 'director', 'ceo', 'cs', 'csa'];
+const ROLE_TITLES = { chairman: 'Chairman', director: 'Director', ceo: 'Chief Executive Officer', cs: 'Company Secretary', csa: 'CS Assistant' };
+function oneCS(s, role, exceptId) {
+  if (role === 'cs' && s.users.some((x) => x.role === 'cs' && x.active !== false && x.id !== exceptId)) fail('There is already a Company Secretary. Change their role first.');
+}
+function checkUsername(s, username, exceptId) {
+  if (!/^[a-z0-9._-]{3,40}$/.test(username)) fail('User ID: 3 to 40 characters, using letters, numbers, dots, dashes or underscores.');
+  const clash = Object.entries(s.credentials).find(([id, c]) => c.username === username && id !== exceptId);
+  if (clash) fail(`The user ID "${username}" is already taken.`);
+}
+function setBodies(s, userId, bodyIds) {
+  s.bodies.forEach((b) => {
+    const want = bodyIds.includes(b.id);
+    if (!want && b.chair === userId) fail(`${user(s, userId).name} chairs the ${b.name}. Choose a new Chair before removing them.`);
+    if (want && !b.members.includes(userId)) b.members.push(userId);
+    if (!want) b.members = b.members.filter((m) => m !== userId);
+  });
+}
 function requireCS(u) { if (u.role !== 'cs') fail('Only the Company Secretary can do this.', 403); }
 function log(state, u, text) {
   state.activity.unshift({ at: nowIso(), who: u ? u.id : 'system', text });
@@ -119,11 +140,13 @@ function viewFor(state, u) {
   return {
     version: state.version,
     today: today(),
-    me: u,
     company: state.company,
     rulePack: rulePack(state),
     rulePacks: state.rulePacks,
-    users: state.users.map((x) => (staff ? x : { id: x.id, name: x.name, title: x.title, role: x.role, voting: x.voting })),
+    me: { ...u, username: (state.credentials[u.id] || {}).username, mustChange: !!(state.credentials[u.id] || {}).mustChange },
+    users: state.users.map((x) => (staff
+      ? { ...x, username: (state.credentials[x.id] || {}).username, mustChange: !!(state.credentials[x.id] || {}).mustChange }
+      : { id: x.id, name: x.name, title: x.title, role: x.role, voting: x.voting, active: x.active })),
     bodies: state.bodies,
     meetings: meetings.map((m) => ({ ...m, quorum: quorumNeeded(state, body(state, m.body)) })),
     papers: state.papers.filter((p) => mids.has(p.meetingId)),
@@ -411,6 +434,76 @@ const actions = {
     if (mobile !== undefined) x.mobile = String(mobile).trim();
     log(s, u, `Contact details updated for ${x.name}.`);
   },
+  // ---- user administration (Company Secretary only) ----
+  'user.create'(s, u, { name, title, role, email, mobile, username, password, voting, bodies }) {
+    requireCS(u);
+    name = String(name || '').trim(); if (!name) fail('Enter a name.');
+    if (!ROLES.includes(role)) fail('Pick a role.');
+    oneCS(s, role, null);
+    const taken = new Set(Object.values(s.credentials).map((c) => c.username));
+    username = String(username || '').trim().toLowerCase() || suggestUsername(name, taken);
+    checkUsername(s, username, null);
+    const bad = validatePassword(password); if (bad) fail(`Password: ${bad}`);
+    const id = uid('u');
+    s.users.push({ id, name, title: String(title || ROLE_TITLES[role]).trim(), role, email: String(email || '').trim(), mobile: String(mobile || '').trim(), voting: role === 'cs' || role === 'csa' ? false : voting !== false, active: true });
+    s.credentials[id] = { username, ...hashPassword(password), mustChange: true, gen: 0 };
+    setBodies(s, id, bodies || []);
+    log(s, u, `Added user ${name} (${ROLE_TITLES[role]}), user ID ${username}.`);
+    return { userId: id, username };
+  },
+  'user.update'(s, u, { userId, name, title, role, email, mobile, username, voting, bodies }) {
+    requireCS(u);
+    const x = user(s, userId); if (!x) fail('User not found', 404);
+    if (role !== undefined) {
+      if (!ROLES.includes(role)) fail('Pick a role.');
+      if (x.id === u.id && role !== 'cs') fail('You cannot remove your own Company Secretary role.');
+      oneCS(s, role, x.id);
+      x.role = role;
+      if (role === 'cs' || role === 'csa') x.voting = false;
+    }
+    if (name !== undefined) { name = String(name).trim(); if (!name) fail('Enter a name.'); x.name = name; }
+    if (title !== undefined) x.title = String(title).trim();
+    if (email !== undefined) x.email = String(email).trim();
+    if (mobile !== undefined) x.mobile = String(mobile).trim();
+    if (voting !== undefined && x.role !== 'cs' && x.role !== 'csa') x.voting = !!voting;
+    if (username !== undefined) {
+      username = String(username).trim().toLowerCase();
+      checkUsername(s, username, x.id);
+      s.credentials[x.id].username = username;
+    }
+    if (bodies !== undefined) setBodies(s, x.id, bodies);
+    log(s, u, `Updated user ${x.name}.`);
+  },
+  'user.setActive'(s, u, { userId, active }) {
+    requireCS(u);
+    const x = user(s, userId); if (!x) fail('User not found', 404);
+    if (x.id === u.id) fail('You cannot deactivate your own account.');
+    if (!active) {
+      const chairs = s.bodies.filter((b) => b.chair === x.id);
+      if (chairs.length) fail(`${x.name} chairs the ${chairs.map((b) => b.name).join(' and ')}. Choose a new Chair first.`);
+      s.bodies.forEach((b) => { b.members = b.members.filter((m) => m !== x.id); });
+      s.credentials[x.id].gen = (s.credentials[x.id].gen || 0) + 1; // signs them out
+    }
+    x.active = !!active;
+    log(s, u, `${active ? 'Reactivated' : 'Deactivated'} user ${x.name}.`);
+  },
+  'user.resetPassword'(s, u, { userId, password }) {
+    requireCS(u);
+    const x = user(s, userId); if (!x) fail('User not found', 404);
+    const bad = validatePassword(password); if (bad) fail(`Password: ${bad}`);
+    const c = s.credentials[x.id];
+    Object.assign(c, hashPassword(password), { mustChange: x.id !== u.id, gen: (c.gen || 0) + 1 });
+    failures.delete(c.username);
+    log(s, u, `Password reset for ${x.name}.`);
+  },
+  'body.setChair'(s, u, { bodyId, userId }) {
+    requireCS(u);
+    const b = body(s, bodyId); if (!b) fail('Not found', 404);
+    const x = user(s, userId); if (!x || !x.active) fail('Pick an active member.');
+    if (!b.members.includes(x.id)) b.members.push(x.id);
+    b.chair = x.id;
+    log(s, u, `${x.name} is now Chair of the ${b.name}.`);
+  },
   'settings.rulePack'(s, u, { rulePack }) {
     requireCS(u);
     if (!s.rulePacks[rulePack]) fail('Unknown rule pack');
@@ -420,10 +513,28 @@ const actions = {
 };
 
 // ---------------- routes ----------------
-function auth(req, res, next) {
-  const id = verify((req.headers.authorization || '').replace(/^Bearer /, ''));
-  if (!id) return res.status(401).json({ error: 'Please sign in again.' });
-  req.userId = id; next();
+async function auth(req, res, next) {
+  try {
+    const t = verify((req.headers.authorization || '').replace(/^Bearer /, ''));
+    if (!t) return res.status(401).json({ error: 'Please sign in again.' });
+    const s = await store.load();
+    const u = user(s, t.userId);
+    const c = s.credentials && s.credentials[t.userId];
+    if (!u || u.active === false || !c || (c.gen || 0) !== t.gen) return res.status(401).json({ error: 'Please sign in again.' });
+    req.userId = t.userId; next();
+  } catch (e) { next(e); }
+}
+// Lock a user ID for 15 minutes after 5 wrong passwords.
+const failures = new Map();
+function lockedOut(username) {
+  const f = failures.get(username);
+  return f && f.count >= 5 && Date.now() - f.last < 15 * 60 * 1000;
+}
+function recordFailure(username) {
+  const f = failures.get(username) || { count: 0, last: 0 };
+  if (Date.now() - f.last > 15 * 60 * 1000) f.count = 0;
+  f.count++; f.last = Date.now();
+  failures.set(username, f);
 }
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
   if (!(e instanceof HttpError)) console.error(e);
@@ -432,25 +543,49 @@ const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
 
 app.get('/healthz', wrap(async (req, res) => res.json({ ok: true, store: await store.kind() })));
 
-app.get('/api/demo-users', wrap(async (req, res) => {
+app.get('/api/company', wrap(async (req, res) => {
   const s = await store.load();
-  res.json({ company: s.company.name, users: s.users.map((u) => ({ id: u.id, name: u.name, title: u.title, role: u.role, mobile: u.mobile ? u.mobile.replace(/\d(?=\d{3})/g, '•') : '' })) });
+  res.json({ company: s.company.name });
 }));
 
-app.post('/api/login/request', wrap(async (req, res) => {
+// Step 1: user ID and password. Step 2: one-time code to the registered mobile.
+app.post('/api/login/password', wrap(async (req, res) => {
   const s = await store.load();
-  const u = user(s, req.body.userId); if (!u) fail('Unknown user');
+  const username = String(req.body.username || '').trim().toLowerCase();
+  if (lockedOut(username)) fail('Too many wrong attempts. Try again in 15 minutes or ask the Company Secretary to reset your password.', 429);
+  const entry = Object.entries(s.credentials).find(([, c]) => c.username === username);
+  const u = entry && user(s, entry[0]);
+  if (!u || !checkPassword(entry[1], req.body.password)) { recordFailure(username); fail('The user ID or password is not correct.', 401); }
+  if (u.active === false) fail('This account has been deactivated. Please contact the Company Secretary.', 403);
+  failures.delete(username);
   const code = issueOtp(u.id, 'login');
   // A real deployment sends this by SMS. In the demo the code is shown on screen.
-  res.json({ simulatedSms: { to: u.mobile || u.email, code } });
+  const to = u.mobile ? u.mobile.replace(/\d(?=[\d ]{4})/g, '•') : u.email;
+  res.json({ userId: u.id, name: u.name, simulatedSms: { to, code } });
 }));
 
 app.post('/api/login/verify', wrap(async (req, res) => {
   const s = await store.load();
-  const u = user(s, req.body.userId); if (!u) fail('Unknown user');
+  const u = user(s, req.body.userId); if (!u || u.active === false) fail('Unknown user');
   checkOtp(u.id, 'login', req.body.code);
   await store.audit(u.id, 'login', {});
-  res.json({ token: sign(u.id) });
+  res.json({ token: sign(u.id, s.credentials[u.id].gen || 0) });
+}));
+
+app.post('/api/password', auth, wrap(async (req, res) => {
+  const { current, next: nextPw } = req.body || {};
+  const bad = validatePassword(nextPw); if (bad) fail(bad);
+  const token = await withLock(() => store.mutate((s) => {
+    const c = s.credentials[req.userId];
+    if (!checkPassword(c, current)) fail('Your current password is not correct.');
+    if (current === nextPw) fail('Choose a password different from the current one.');
+    Object.assign(c, hashPassword(nextPw), { mustChange: false, gen: (c.gen || 0) + 1 });
+    s.version += 1;
+    log(s, user(s, req.userId), `${user(s, req.userId).name} changed their password.`);
+    return sign(req.userId, c.gen);
+  }));
+  await store.audit(req.userId, 'password.change', {});
+  res.json({ token });
 }));
 
 app.get('/api/state', auth, wrap(async (req, res) => {
@@ -517,5 +652,7 @@ app.post('/api/demo/reset', auth, wrap(async (req, res) => {
 app.get(/^\/(?!api\/).*/, (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
 store.init().then(async () => {
+  // Older databases have no credentials yet: add user IDs and starter passwords.
+  await store.mutate((s) => { if (ensureCredentials(s)) s.version += 1; });
   app.listen(PORT, () => console.log(`Boardroom 360 listening on ${PORT} (store: ${process.env.DATABASE_URL ? 'postgres' : 'memory'})`));
 }).catch((e) => { console.error('Startup failed', e); process.exit(1); });
