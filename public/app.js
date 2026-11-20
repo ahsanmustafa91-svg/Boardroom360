@@ -545,7 +545,7 @@
     const paper = papersOf(m.id).find((p) => p.itemId === it.id);
     let main = `<div class="card live-item"><div class="faint">Item ${it.no} of ${m.agenda.length} · ${it.type === 'decision' ? 'For decision' : 'For information'} · presented by ${esc(uname(it.presenter))}</div>
       <h1 style="margin-top:6px">${esc(it.title)}</h1>
-      ${it.resolutionText ? `<p class="muted" style="font-family:'Source Serif 4',serif;font-size:16px">${esc(it.resolutionText)}</p>` : ''}
+      ${it.resolutionText ? `<p class="muted" style="font-family:var(--font);font-size:16px">${esc(it.resolutionText)}</p>` : ''}
       ${paper ? `<a class="btn small" href="#/paper/${paper.id}">Open paper</a>` : ''}
       ${it.outcome ? `<p style="margin-top:12px"><span class="chip ${OUTCOME[it.outcome][1]}">${OUTCOME[it.outcome][0]}</span></p>` : ''}`;
     if (it.type === 'decision' && (it.voteOpen || Object.keys(it.votes || {}).length)) {
@@ -594,7 +594,7 @@
     const st = { draft: ['Draft', 'warn'], circulated: ['Out for signature', 'brand'], signed: ['Signed and sealed', 'ok'] }[mn.status];
     return `<div class="page-head"><div><a href="#/meeting/${m.id}" class="faint">← ${esc(m.title)}</a><h1>Minutes</h1><span class="chip ${st[1]}">${st[0]}</span></div></div>
       <div class="split">
-        <div class="letter">${isStaff() && mn.status !== 'signed' ? `<textarea id="minText" style="min-height:520px;font-family:'Source Serif 4',serif;font-size:15px;border:0;padding:0">${esc(mn.text)}</textarea>` : `<div class="minutes-text">${esc(mn.text)}</div>`}
+        <div class="letter">${isStaff() && mn.status !== 'signed' ? `<textarea id="minText" style="min-height:520px;font-family:var(--font);font-size:15px;border:0;padding:0">${esc(mn.text)}</textarea>` : `<div class="minutes-text">${esc(mn.text)}</div>`}
           ${mn.status === 'signed' ? `<div style="display:flex;gap:40px;margin-top:28px;flex-wrap:wrap">${signers.map((s) => `<div><div class="seal">✓ ${fmtDT(mn.signatures[s])}</div><div style="margin-top:6px"><b>${esc(uname(s))}</b><br><span class="faint">${s === b.chair ? 'Chair' : 'Company Secretary'}</span></div></div>`).join('')}</div>` : ''}
         </div>
         <div>
@@ -627,7 +627,7 @@
     return `<div class="page-head"><div><h1>Ask the record</h1><p class="muted">Ask what the Board decided, in plain words. Answers come only from the resolution register and cite their source.</p></div></div>
       <div class="card"><form onsubmit="event.preventDefault(); B.ask(this.q.value)" class="btns"><input name="q" placeholder="What did the Board decide about the dividend?" style="flex:1;min-width:200px" value="${esc(lastAsk ? lastAsk.q : '')}"><button class="btn primary">Ask</button></form>
         <div class="btns" style="margin-top:10px">${['What did we decide on the dividend?', 'Who was appointed CFO?', 'Solar project cost', 'Budget for FY2027'].map((x) => `<button class="btn small" onclick="B.ask('${x}')">${x}</button>`).join('')}</div></div>
-      ${lastAsk ? `<div class="card"><h3>Answer</h3><p style="font-family:'Source Serif 4',serif;font-size:17px">${esc(lastAsk.answer)}</p>${lastAsk.sources.length ? `<div class="faint">Sources: ${lastAsk.sources.map((s) => `<a href="#/meeting/${s.meetingId}">${esc(s.ref)}</a> (${fmtDate(s.passedOn)})`).join(' · ')}</div>` : ''}<p class="faint" style="margin-top:8px">Demo: answers are found by searching the register, not generated.</p></div>` : ''}`;
+      ${lastAsk ? `<div class="card"><h3>Answer</h3><p style="font-family:var(--font);font-size:17px">${esc(lastAsk.answer)}</p>${lastAsk.sources.length ? `<div class="faint">Sources: ${lastAsk.sources.map((s) => `<a href="#/meeting/${s.meetingId}">${esc(s.ref)}</a> (${fmtDate(s.passedOn)})`).join(' · ')}</div>` : ''}<p class="faint" style="margin-top:8px">Demo: answers are found by searching the register, not generated.</p></div>` : ''}`;
   }
 
   // ---- CS screens ----
