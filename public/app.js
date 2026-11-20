@@ -105,35 +105,35 @@
     const out = [];
     const u = me();
     const live = S.meetings.filter((m) => m.status === 'live' && (isMember(m) || isStaff()));
-    live.forEach((m) => out.push({ icon: '●', text: `${m.title} is live`, sub: 'Join to follow the agenda and vote', href: `#/live/${m.id}`, cta: 'Join now', urgent: true }));
+    live.forEach((m) => out.push({ icon: 'radio_button_checked', text: `${m.title} is live`, sub: 'Join to follow the agenda and vote', href: `#/live/${m.id}`, cta: 'Join now', urgent: true }));
     if (!isStaff()) {
       myInbox().filter((n) => !n.recipients[u.id].acknowledgedAt).forEach((n) => {
         const m = meeting(n.meetingId);
-        out.push({ icon: '✉', text: `${kindLabel(n.kind)}: ${m.title}`, sub: `Issued ${fmtDT(n.issuedAt)} · please acknowledge receipt`, href: `#/notice/${n.id}`, cta: 'Open notice' });
+        out.push({ icon: 'mail', text: `${kindLabel(n.kind)}: ${m.title}`, sub: `Issued ${fmtDT(n.issuedAt)} · please acknowledge receipt`, href: `#/notice/${n.id}`, cta: 'Open notice' });
       });
       S.meetings.filter((m) => m.status === 'polling' && isMember(m)).forEach((m) => {
         const r = m.poll.responses[u.id] || {};
-        if (Object.keys(r).length < m.poll.options.length) out.push({ icon: '📅', text: `Pick dates for the ${m.title}`, sub: `Poll closes ${fmtDate(m.poll.closesOn)}`, href: `#/meeting/${m.id}`, cta: 'Answer poll' });
+        if (Object.keys(r).length < m.poll.options.length) out.push({ icon: 'event', text: `Pick dates for the ${m.title}`, sub: `Poll closes ${fmtDate(m.poll.closesOn)}`, href: `#/meeting/${m.id}`, cta: 'Answer poll' });
       });
       S.meetings.filter((m) => m.status === 'scheduled' && isMember(m)).forEach((m) => {
         const unread = papersOf(m.id).filter((p) => !p.readBy[u.id]).length;
-        if (!m.rsvps[u.id] && !myInbox().some((n) => n.meetingId === m.id && !n.recipients[u.id].acknowledgedAt)) out.push({ icon: '✓', text: `Will you attend the ${m.title}?`, sub: `${fmtDate(m.date)} at ${fmtTime(m.time)}`, href: `#/meeting/${m.id}`, cta: 'Reply' });
-        if (unread) out.push({ icon: '📄', text: `${unread} unread paper${unread > 1 ? 's' : ''} for the ${m.title}`, sub: `Meeting on ${fmtDate(m.date)}`, href: `#/pack/${m.id}`, cta: 'Read pack' });
+        if (!m.rsvps[u.id] && !myInbox().some((n) => n.meetingId === m.id && !n.recipients[u.id].acknowledgedAt)) out.push({ icon: 'how_to_reg', text: `Will you attend the ${m.title}?`, sub: `${fmtDate(m.date)} at ${fmtTime(m.time)}`, href: `#/meeting/${m.id}`, cta: 'Reply' });
+        if (unread) out.push({ icon: 'description', text: `${unread} unread paper${unread > 1 ? 's' : ''} for the ${m.title}`, sub: `Meeting on ${fmtDate(m.date)}`, href: `#/pack/${m.id}`, cta: 'Read pack' });
       });
-      S.meetings.filter((m) => m.status === 'polling' && isChairOf(m) && !m.agendaApproved).forEach((m) => out.push({ icon: '☑', text: `Approve the agenda of the ${m.title}`, sub: 'Needed before the notice can be issued', href: `#/meeting/${m.id}`, cta: 'Review agenda' }));
-      S.meetings.filter((m) => m.status === 'scheduled' && isChairOf(m) && !m.agendaApproved).forEach((m) => out.push({ icon: '☑', text: `Approve the agenda of the ${m.title}`, sub: 'Needed before the notice can be issued', href: `#/meeting/${m.id}`, cta: 'Review agenda' }));
+      S.meetings.filter((m) => m.status === 'polling' && isChairOf(m) && !m.agendaApproved).forEach((m) => out.push({ icon: 'fact_check', text: `Approve the agenda of the ${m.title}`, sub: 'Needed before the notice can be issued', href: `#/meeting/${m.id}`, cta: 'Review agenda' }));
+      S.meetings.filter((m) => m.status === 'scheduled' && isChairOf(m) && !m.agendaApproved).forEach((m) => out.push({ icon: 'fact_check', text: `Approve the agenda of the ${m.title}`, sub: 'Needed before the notice can be issued', href: `#/meeting/${m.id}`, cta: 'Review agenda' }));
     }
-    S.meetings.filter((m) => m.minutes && m.minutes.status === 'circulated' && (isChairOf(m) || u.role === 'cs') && !m.minutes.signatures[u.id]).forEach((m) => out.push({ icon: '✍', text: `Sign the minutes of the ${m.title}`, sub: `Held ${fmtDate(m.date)}`, href: `#/minutes/${m.id}`, cta: 'Review and sign' }));
+    S.meetings.filter((m) => m.minutes && m.minutes.status === 'circulated' && (isChairOf(m) || u.role === 'cs') && !m.minutes.signatures[u.id]).forEach((m) => out.push({ icon: 'draw', text: `Sign the minutes of the ${m.title}`, sub: `Held ${fmtDate(m.date)}`, href: `#/minutes/${m.id}`, cta: 'Review and sign' }));
     if (isStaff()) {
-      S.notices.filter((n) => n.status === 'draft').forEach((n) => out.push({ icon: '✉', text: `${kindLabel(n.kind)} ${n.ref} is ready to issue`, sub: meeting(n.meetingId).title, href: `#/cs/notice/${n.id}`, cta: 'Open' }));
+      S.notices.filter((n) => n.status === 'draft').forEach((n) => out.push({ icon: 'mail', text: `${kindLabel(n.kind)} ${n.ref} is ready to issue`, sub: meeting(n.meetingId).title, href: `#/cs/notice/${n.id}`, cta: 'Open' }));
       S.meetings.filter((m) => m.status === 'polling').forEach((m) => {
         const n = Object.keys(m.poll.responses).length, of = body(m.body).members.length;
-        out.push({ icon: '📅', text: `Date poll: ${m.title}`, sub: `${n} of ${of} replied · closes ${fmtDate(m.poll.closesOn)}`, href: `#/meeting/${m.id}`, cta: 'View poll' });
+        out.push({ icon: 'event', text: `Date poll: ${m.title}`, sub: `${n} of ${of} replied · closes ${fmtDate(m.poll.closesOn)}`, href: `#/meeting/${m.id}`, cta: 'View poll' });
       });
-      S.meetings.filter((m) => m.minutes && m.minutes.status === 'draft').forEach((m) => out.push({ icon: '✎', text: `Finalise and circulate minutes of the ${m.title}`, sub: 'Drafted automatically from the meeting', href: `#/minutes/${m.id}`, cta: 'Open draft' }));
+      S.meetings.filter((m) => m.minutes && m.minutes.status === 'draft').forEach((m) => out.push({ icon: 'edit_note', text: `Finalise and circulate minutes of the ${m.title}`, sub: 'Drafted automatically from the meeting', href: `#/minutes/${m.id}`, cta: 'Open draft' }));
       S.notices.filter((n) => n.status === 'issued' && meeting(n.meetingId).status === 'scheduled').forEach((n) => {
         const notAck = Object.values(n.recipients).filter((r) => !r.acknowledgedAt).length;
-        if (notAck) out.push({ icon: '⏳', text: `${notAck} not yet acknowledged ${n.ref}`, sub: meeting(n.meetingId).title, href: `#/cs/notice/${n.id}`, cta: 'Track' });
+        if (notAck) out.push({ icon: 'hourglass_top', text: `${notAck} not yet acknowledged ${n.ref}`, sub: meeting(n.meetingId).title, href: `#/cs/notice/${n.id}`, cta: 'Track' });
       });
     }
     return out;
@@ -147,7 +147,7 @@
     return `
     <div class="signin">
       <section class="hero">
-        <div class="logo" style="color:#fff"><div class="logo-mark" style="background:#fff;color:var(--brand)">B360</div><div>Boardroom 360<small style="color:#cfc4ff">The digital boardroom</small></div></div>
+        <div class="logo"><div class="logo-mark">B360</div><div><span class="logo-text">Boardroom 360</span><small>The digital boardroom</small></div></div>
         <div>
           <h1>Your board, finally <em>in one place.</em></h1>
           <p>Notices, papers, votes, minutes and resolutions, with a record that stands up to SECP scrutiny. No more WhatsApp papers, phone-call attendance or minutes waiting weeks for a signature.</p>
@@ -187,47 +187,78 @@
       </form>`;
   }
 
-  function shell(content, route) {
+  // Navigation items, shared by the top menu (desktop), rail (tablet) and bar + sheet (phone).
+  function navItems() {
     const u = me();
     const items = actionItems();
     const inboxUnack = isStaff() ? 0 : myInbox().filter((n) => !n.recipients[u.id].acknowledgedAt).length;
     const draftCount = S.notices.filter((n) => n.status === 'draft').length;
-    const link = (href, label, count) => `<a href="${href}" class="${route === href.slice(2) || route.startsWith(href.slice(2) + '/') ? 'active' : ''}">${label}${count ? `<span class="count">${count}</span>` : ''}</a>`;
-    const nav = isStaff() ? `
-        ${link('#/home', 'Home', items.length)}
-        ${link('#/meetings', 'Meetings')}
-        <div class="sep">Company Secretary</div>
-        ${link('#/cs/register', 'Notices', draftCount)}
-        ${link('#/cs/new', 'New meeting')}
-        ${link('#/cs/compliance', 'Compliance')}
-        ${link('#/cs/fees', 'Fees')}
-        ${me().role === 'cs' ? link('#/cs/users', 'Users') : link('#/cs/members', 'Members')}
-        ${link('#/cs/activity', 'Activity')}
-        <div class="sep">Records</div>
-        ${link('#/resolutions', 'Resolutions')}
-        ${link('#/archive', 'Archive')}
-        ${link('#/ask', 'Ask the record')}
-        ${link('#/cs/settings', 'Settings')}` : `
-        ${link('#/home', 'Home', items.length)}
-        ${link('#/notices', 'Notices', inboxUnack)}
-        ${link('#/meetings', 'Meetings')}
-        ${link('#/resolutions', 'Resolutions')}
-        ${link('#/archive', 'Archive')}
-        ${link('#/ask', 'Ask the record')}`;
+    if (isStaff()) return [
+      { href: '#/home', label: 'Home', icon: 'home', count: items.length, primary: true },
+      { href: '#/meetings', label: 'Meetings', icon: 'event', primary: true },
+      { sep: true },
+      { href: '#/cs/register', label: 'Notices', icon: 'mail', count: draftCount, primary: true },
+      { href: '#/cs/new', label: 'New meeting', icon: 'add_circle' },
+      { href: '#/cs/compliance', label: 'Compliance', icon: 'verified' },
+      { href: '#/cs/fees', label: 'Fees', icon: 'payments' },
+      u.role === 'cs' ? { href: '#/cs/users', label: 'Users', icon: 'group' } : { href: '#/cs/members', label: 'Members', icon: 'group' },
+      { href: '#/cs/activity', label: 'Activity', icon: 'history' },
+      { sep: true },
+      { href: '#/resolutions', label: 'Resolutions', icon: 'gavel', primary: true },
+      { href: '#/archive', label: 'Archive', icon: 'inventory_2' },
+      { href: '#/ask', label: 'Ask the record', icon: 'manage_search' },
+      { href: '#/cs/settings', label: 'Settings', icon: 'settings' },
+    ];
+    return [
+      { href: '#/home', label: 'Home', icon: 'home', count: items.length, primary: true },
+      { href: '#/notices', label: 'Notices', icon: 'mail', count: inboxUnack, primary: true },
+      { href: '#/meetings', label: 'Meetings', icon: 'event', primary: true },
+      { href: '#/resolutions', label: 'Resolutions', icon: 'gavel', primary: true },
+      { href: '#/archive', label: 'Archive', icon: 'inventory_2' },
+      { href: '#/ask', label: 'Ask the record', icon: 'manage_search' },
+    ];
+  }
+  const ms = (name, cls) => `<span class="ms ${cls || ''}" aria-hidden="true">${name}</span>`;
+
+  function shell(content, route) {
+    const u = me();
+    const nav = navItems();
+    const isActive = (it) => route === it.href.slice(2) || route.startsWith(it.href.slice(2) + '/');
+    const badge = (it) => (it.count ? `<span class="count">${it.count}</span>` : '');
+    const top = nav.map((it) => it.sep ? '<span class="sep" aria-hidden="true"></span>'
+      : `<a href="${it.href}" class="${isActive(it) ? 'active' : ''}" ${isActive(it) ? 'aria-current="page"' : ''}>${ms(it.icon, isActive(it) ? 'fill' : '')}${it.label}${badge(it)}</a>`).join('');
+    const railLink = (it) => `<a href="${it.href}" class="${isActive(it) ? 'active' : ''}" ${isActive(it) ? 'aria-current="page"' : ''}><span class="ind">${ms(it.icon)}${badge(it)}</span>${esc(it.label === 'Ask the record' ? 'Ask' : it.label === 'New meeting' ? 'New' : it.label)}</a>`;
+    const rail = nav.map((it) => (it.sep ? '<span class="sep" aria-hidden="true"></span>' : railLink(it))).join('');
+    const primary = nav.filter((it) => it.primary);
+    const rest = nav.filter((it) => !it.sep && !it.primary);
+    const moreActive = rest.some(isActive);
+    const moreCount = rest.reduce((a, it) => a + (it.count || 0), 0);
+    const bar = primary.map(railLink).join('') + `<a href="javascript:void 0" role="button" onclick="B.openMore()" class="${moreActive ? 'active' : ''}"><span class="ind">${ms('menu')}${moreCount ? `<span class="count">${moreCount}</span>` : ''}</span>More</a>`;
     return `
+      <aside class="rail" aria-label="Main"><a class="logo" href="#/home" aria-label="Home"><div class="logo-mark">B360</div></a>${rail}</aside>
       <div class="masthead">
       <header class="topbar">
-        <a class="logo" href="#/home"><div class="logo-mark">B360</div><div>Boardroom 360<small>${esc(S.company.name)}</small></div></a>
+        <a class="logo" href="#/home"><div class="logo-mark">B360</div><div><span class="logo-text">Boardroom 360</span><small>${esc(S.company.name)}</small></div></a>
         <div class="spacer"></div>
-        <div class="who"><b>${esc(u.name)}</b><span class="faint">${esc(u.title)}</span></div>
-        <a class="btn small" href="#/password">Password</a>
-        <button class="btn small" onclick="B.signOut()">Sign out</button>
+        <div class="who"><b>${esc(u.name)}</b><span>${esc(u.title)}</span></div>
+        <a class="icon-btn" href="#/password" title="Change password" aria-label="Change password">${ms('key')}</a>
+        <button class="icon-btn" onclick="B.signOut()" title="Sign out" aria-label="Sign out">${ms('logout')}</button>
       </header>
-      <nav class="nav" aria-label="Main"><div class="nav-inner">${nav}</div></nav>
+      <nav class="nav" aria-label="Main"><div class="nav-inner">${top}</div></nav>
       </div>
       <div class="shell">
         <main>${content}</main>
-      </div>`;
+      </div>
+      <nav class="navbar" aria-label="Main">${bar}</nav>`;
+  }
+  function moreSheet() {
+    const r = route();
+    const rest = navItems().filter((it) => !it.sep && !it.primary);
+    $('#modal-root').innerHTML = `<div class="sheet-back" onclick="if(event.target===this)B.closeSheet()"><div class="sheet" role="dialog" aria-label="More"><div class="handle"></div>
+      ${rest.map((it) => { const a = r === it.href.slice(2) || r.startsWith(it.href.slice(2) + '/'); return `<a href="${it.href}" class="${a ? 'active' : ''}" onclick="B.closeSheet()">${ms(it.icon, a ? 'fill' : '')}${esc(it.label)}${it.count ? `<span class="count">${it.count}</span>` : ''}</a>`; }).join('')}
+      <a href="#/password" onclick="B.closeSheet()">${ms('key')}Change password</a>
+      <a href="javascript:void 0" onclick="B.closeSheet(); B.signOut()">${ms('logout')}Sign out</a>
+    </div></div>`;
   }
 
   function homeView() {
@@ -241,16 +272,16 @@
       <div class="page-head"><div><h1>${greet}, ${esc(first)}</h1><p class="muted">${items.length ? `You have ${items.length} thing${items.length > 1 ? 's' : ''} to do.` : 'You are all caught up.'}</p></div></div>
       ${isStaff() ? csStats() : ''}
       <div class="card flush">
-        <div class="card-head" style="padding:16px 20px 0"><h2>Your actions</h2></div>
+        <div class="card-head" style="padding:16px 24px 0"><h2>Your actions</h2></div>
         ${items.length ? `<ul class="list">${items.map((a) => `
           <li class="row action-row" onclick="location.hash='${a.href}'">
-            <div class="icon-dot" ${a.urgent ? 'style="background:var(--bad);color:#fff"' : ''}>${a.icon}</div>
+            <div class="icon-dot ${a.urgent ? 'urgent' : ''}">${ms(a.icon)}</div>
             <div class="grow"><div class="title">${esc(a.text)}</div><div class="faint">${esc(a.sub)}</div></div>
-            <a class="btn small ${a.urgent ? 'primary' : ''}" href="${a.href}">${a.cta}</a>
+            <a class="btn small hide-sm ${a.urgent ? 'primary' : ''}" href="${a.href}">${a.cta}</a>
           </li>`).join('')}</ul>` : '<div class="empty">Nothing needs you right now.</div>'}
       </div>
       <div class="card flush">
-        <div class="card-head" style="padding:16px 20px 0"><h2>Coming up</h2><a href="#/meetings" class="faint">All meetings</a></div>
+        <div class="card-head" style="padding:16px 24px 0"><h2>Coming up</h2><a href="#/meetings" class="faint">All meetings</a></div>
         <ul class="list">${upcoming.map(meetingRow).join('') || '<div class="empty">No upcoming meetings.</div>'}</ul>
       </div>`;
   }
@@ -270,7 +301,7 @@
     const b = body(m.body);
     const when = m.status === 'polling' ? `Date poll: ${m.poll.options.map((d) => fmtDay(d)).join(', ')}` : `${fmtDate(m.date)}${m.time ? ' · ' + fmtTime(m.time) : ''}`;
     return `<li class="row action-row" onclick="location.hash='#/meeting/${m.id}'">
-      <div class="icon-dot" style="font-size:11px;font-weight:700">${b.code}</div>
+      <div class="icon-dot">${b.code}</div>
       <div class="grow"><div class="title">${esc(m.title)}</div><div class="faint">${esc(when)}</div></div>
       ${statusChip(m)}
     </li>`;
@@ -325,13 +356,13 @@
       ${agendaApprovalNote(m)}
       <ol class="list">${m.agenda.map((it) => {
         const p = papers.find((x) => x.itemId === it.id);
-        return `<li style="padding:10px 0;border-top:1px solid var(--line);display:flex;gap:10px">
+        return `<li style="padding:12px 0;border-top:1px solid var(--line);display:flex;gap:12px;align-items:flex-start">
           <b style="width:22px">${it.no}.</b>
           <div style="flex:1"><div>${esc(it.title)}</div>
             <div class="faint">${it.type === 'decision' ? 'For decision' : 'For information'} · ${esc(uname(it.presenter))}${it.outcome ? ` · <span class="chip ${OUTCOME[it.outcome][1]}">${OUTCOME[it.outcome][0]}</span>` : ''}</div>
-            ${p ? `<a href="#/paper/${p.id}" class="faint">📄 ${esc(p.title)}${p.readBy[u.id] ? ' · read' : ''}</a>` : ''}
+            ${p ? `<a href="#/paper/${p.id}" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('description', 'sm')} ${esc(p.title)}${p.readBy[u.id] ? ' · read' : ''}</a>` : ''}
           </div>
-          ${isStaff() && ['polling', 'scheduled'].includes(m.status) ? `<button class="btn small danger" title="Remove" onclick="B.removeItem('${m.id}','${it.id}')">✕</button>` : ''}
+          ${isStaff() && ['polling', 'scheduled'].includes(m.status) ? `<button class="icon-btn" title="Remove item" aria-label="Remove item" onclick="B.removeItem('${m.id}','${it.id}')">${ms('delete')}</button>` : ''}
         </li>`;
       }).join('')}</ol>
       ${isStaff() && ['polling', 'scheduled'].includes(m.status) ? addItemForm(m) : ''}
@@ -354,9 +385,9 @@
   function agendaApprovalNote(m) {
     if (!['polling', 'scheduled'].includes(m.status)) return '';
     const chair = uname(body(m.body).chair);
-    if (m.agendaApproved) return `<p class="faint">✓ Approved by ${esc(chair)} (Chair)${m.agendaApprovedAt ? ' on ' + fmtDT(m.agendaApprovedAt) : ''}.</p>`;
+    if (m.agendaApproved) return `<p class="faint" style="display:flex;align-items:center;gap:4px">${ms('check_circle', 'sm')} Approved by ${esc(chair)} (Chair)${m.agendaApprovedAt ? ' on ' + fmtDT(m.agendaApprovedAt) : ''}.</p>`;
     if (isChairOf(m)) return '<p class="faint">As Chair, your approval is needed before the Company Secretary can issue the notice.</p>';
-    return `<p class="faint" style="background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px">Only the Chair of this ${m.body === 'board' ? 'Board' : 'committee'}, ${esc(chair)}, can approve the agenda. The notice cannot be issued until they do.</p>`;
+    return `<p class="note-warn">Only the Chair of this ${m.body === 'board' ? 'Board' : 'committee'}, ${esc(chair)}, can approve the agenda. The notice cannot be issued until they do.</p>`;
   }
 
   function pollCard(m) {
@@ -368,12 +399,12 @@
     let h = `<div class="card"><div class="card-head"><h2>Date poll</h2><span class="faint">Closes ${fmtDate(m.poll.closesOn)}</span></div>`;
     if (isMember(m) && !isStaff()) {
       h += `<p class="muted">Which dates work for you?</p>`;
-      h += m.poll.options.map((d) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><div style="flex:1"><b>${fmtDate(d, { weekday: 'long' })}</b></div>
+      h += m.poll.options.map((d) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="flex:1"><b>${fmtDate(d, { weekday: 'long' })}</b></div>
         ${['yes', 'maybe', 'no'].map((a) => `<button class="btn small ${mine[d] === a ? 'sel' : ''}" onclick="B.act('poll.respond',{meetingId:'${m.id}',date:'${d}',answer:'${a}'})">${a[0].toUpperCase() + a.slice(1)}</button>`).join('')}</div>`).join('');
     }
     if (isStaff() || isChairOf(m)) {
       h += `<div class="table-wrap" style="margin-top:12px"><table class="poll-grid"><tr><th>Member</th>${m.poll.options.map((d) => `<th>${fmtDay(d)}</th>`).join('')}</tr>
-        ${b.members.map((id) => `<tr><td>${esc(uname(id))}</td>${m.poll.options.map((d) => { const a = (m.poll.responses[id] || {})[d]; return `<td>${a ? `<span class="yn ${a}">${a === 'yes' ? '✓' : a === 'no' ? '✕' : '?'}</span>` : '<span class="faint">—</span>'}</td>`; }).join('')}</tr>`).join('')}
+        ${b.members.map((id) => `<tr><td>${esc(uname(id))}</td>${m.poll.options.map((d) => { const a = (m.poll.responses[id] || {})[d]; return `<td>${a ? `<span class="yn ${a}">${ms(a === 'yes' ? 'check' : a === 'no' ? 'close' : 'help')}</span>` : '<span class="faint">—</span>'}</td>`; }).join('')}</tr>`).join('')}
         <tr><td><b>Available</b></td>${m.poll.options.map((d) => `<td><b>${score(d)}</b></td>`).join('')}</tr></table></div>`;
     }
     if (isStaff()) {
@@ -412,7 +443,7 @@
       <div class="card flush"><ul class="list">${list.map((n) => {
         const r = n.recipients[me().id];
         const m = meeting(n.meetingId);
-        return `<li class="row action-row" onclick="location.hash='#/notice/${n.id}'"><div class="icon-dot">✉</div>
+        return `<li class="row action-row" onclick="location.hash='#/notice/${n.id}'"><div class="icon-dot">${ms('mail')}</div>
           <div class="grow"><div class="title">${kindLabel(n.kind)}: ${esc(m.title)}</div><div class="faint">${esc(n.ref)} · issued ${fmtDT(n.issuedAt)}</div></div>
           ${r.acknowledgedAt ? '<span class="chip ok">Acknowledged</span>' : '<span class="chip warn">Please acknowledge</span>'}</li>`;
       }).join('') || '<div class="empty">No notices yet.</div>'}</ul></div>`;
@@ -439,7 +470,7 @@
       <p>Board papers are available in Boardroom 360. Please acknowledge receipt and confirm your attendance.</p>
       <p style="margin-top:28px">By order of the ${b.id === 'board' ? 'Board' : 'Committee'}</p>
       <p><b>${esc(uname(csId()))}</b><br>Company Secretary</p>
-      ${n.status === 'issued' ? `<span class="seal">✓ Signed and issued ${fmtDT(n.issuedAt)} · sealed</span>` : '<span class="chip warn">Draft, not yet issued</span>'}
+      ${n.status === 'issued' ? `<span class="seal">${ms('verified', 'sm')} Signed and issued ${fmtDT(n.issuedAt)} · sealed</span>` : '<span class="chip warn">Draft, not yet issued</span>'}
     </div>`;
   }
 
@@ -449,7 +480,7 @@
     const r = n.recipients[me().id];
     if (r && !r.openedAt) setTimeout(() => api('/api/action', { type: 'notice.open', payload: { noticeId: id } }).catch(() => {}), 0);
     const m = meeting(n.meetingId);
-    return `<div class="page-head"><div><a href="#/notices" class="faint">← Notices</a><h1>${kindLabel(n.kind)}</h1></div></div>
+    return `<div class="page-head"><div><a href="#/notices" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} Notices</a><h1>${kindLabel(n.kind)}</h1></div></div>
       <div class="split">
         <div>${letter(n)}</div>
         <div>${r ? `<div class="card"><h2>Your reply</h2>
@@ -457,7 +488,7 @@
           <label>Attendance</label>
           <div style="display:grid;gap:8px">${Object.entries(REPLY).map(([k, v]) => `<button class="btn ${r.reply === k ? 'sel' : ''}" onclick="B.ack('${n.id}','${k}')">${v}</button>`).join('')}</div>
           ${!r.acknowledgedAt ? `<button class="btn primary" style="margin-top:12px;width:100%" onclick="B.ack('${n.id}')">Acknowledge receipt</button>` : ''}
-          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+          <hr class="divider">
           <div class="btns"><button class="btn small" onclick="B.ics('${m.id}')">Add to calendar</button><a class="btn small" href="#/meeting/${m.id}">Meeting and papers</a></div>
         </div>` : ''}</div>
       </div>`;
@@ -471,10 +502,10 @@
     let side;
     if (n.status === 'draft') {
       const ok = n.checks.every((c) => c.ok);
-      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${c.ok ? '✓' : '!'}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? (me().role === 'cs' ? ' · <a href="#/cs/users">Fix in Users</a>' : ' · <a href="#/cs/members">Fix in Members</a>') : ''}</div></div>`).join('')}
+      side = `<div class="card"><h2>Before it can be sent</h2>${n.checks.map((c) => `<div class="check ${c.ok ? 'ok' : 'bad'}"><span class="mark">${ms(c.ok ? 'check' : 'priority_high')}</span><div>${esc(c.label)}${!c.ok && c.id === 'contacts' ? (me().role === 'cs' ? ' · <a href="#/cs/users">Fix in Users</a>' : ' · <a href="#/cs/members">Fix in Members</a>') : ''}</div></div>`).join('')}
         <label>Additional note on the notice (optional)</label><textarea id="noticeNote">${esc(n.note)}</textarea>
         <button class="btn small" style="margin-top:8px" onclick="B.saveNote('${n.id}')">Save note</button>
-        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+        <hr class="divider">
         ${me().role === 'cs' ? `<button class="btn primary big" style="width:100%" ${ok ? '' : 'disabled'} onclick="B.issueNotice('${n.id}')">Sign and issue</button><p class="faint" style="margin-top:8px">Sent by email and SMS to ${body(m.body).members.length} recipients. You confirm with a one-time code.</p>` : '<p class="faint">Only the Company Secretary can sign and issue a notice.</p>'}
       </div>`;
     } else {
@@ -483,9 +514,9 @@
       side = `<div class="card"><h2>Delivery</h2>
         <div class="grid3" style="gap:8px;margin-bottom:12px"><div><div class="stat n" style="padding:0">${rs.length}</div><div class="faint">Delivered</div></div><div><div class="stat n" style="padding:0">${opened}</div><div class="faint">Opened</div></div><div><div class="stat n" style="padding:0">${acked}</div><div class="faint">Acknowledged</div></div></div>
         <ul class="list">${rs.map(([uid, r]) => `<li class="row" style="padding:10px 0"><div class="grow"><b>${esc(uname(uid))}</b><div class="faint">${r.acknowledgedAt ? `Acknowledged ${fmtDT(r.acknowledgedAt)}${r.reply ? ' · ' + REPLY[r.reply] : ''}` : r.openedAt ? `Opened ${fmtDT(r.openedAt)}` : `Delivered ${fmtDT(r.deliveredAt)}`}${r.reminders ? ` · ${r.reminders} reminder${r.reminders > 1 ? 's' : ''}` : ''}</div></div>
-          ${r.acknowledgedAt ? '<span class="chip ok">✓</span>' : `<button class="btn small" onclick="B.act('notice.remind',{noticeId:'${n.id}',userId:'${uid}'},'Reminder sent by SMS and email')">Remind</button>`}</li>`).join('')}</ul></div>`;
+          ${r.acknowledgedAt ? '<span class="chip ok">Acknowledged</span>' : `<button class="btn small" onclick="B.act('notice.remind',{noticeId:'${n.id}',userId:'${uid}'},'Reminder sent by SMS and email')">Remind</button>`}</li>`).join('')}</ul></div>`;
     }
-    return `<div class="page-head"><div><a href="#/cs/register" class="faint">← Notice register</a><h1>${esc(n.ref)}</h1><div class="btns"><span class="chip">${kindLabel(n.kind)}</span>${n.status === 'issued' ? '<span class="chip ok">Issued · sealed</span>' : '<span class="chip warn">Draft</span>'}</div></div><a class="btn" href="#/meeting/${m.id}">Meeting</a></div>
+    return `<div class="page-head"><div><a href="#/cs/register" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} Notice register</a><h1>${esc(n.ref)}</h1><div class="btns"><span class="chip">${kindLabel(n.kind)}</span>${n.status === 'issued' ? '<span class="chip ok">Issued · sealed</span>' : '<span class="chip warn">Draft</span>'}</div></div><a class="btn" href="#/meeting/${m.id}">Meeting</a></div>
       <div class="split"><div>${letter(n)}</div><div>${side}</div></div>`;
   }
 
@@ -505,7 +536,7 @@
     const m = meeting(p.meetingId);
     const it = m.agenda.find((x) => x.id === p.itemId);
     return `<div class="reader">
-      <div class="page-head"><div><a href="#/meeting/${m.id}" class="faint">← ${esc(m.title)}</a><h1>${esc(p.title)}</h1><p class="faint">Agenda item ${it ? it.no : ''} · ${p.pages.length} page${p.pages.length > 1 ? 's' : ''}</p></div><a class="btn" href="#/pack/${m.id}">Read entire pack</a></div>
+      <div class="page-head"><div><a href="#/meeting/${m.id}" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} ${esc(m.title)}</a><h1>${esc(p.title)}</h1><p class="faint">Agenda item ${it ? it.no : ''} · ${p.pages.length} page${p.pages.length > 1 ? 's' : ''}</p></div><a class="btn" href="#/pack/${m.id}">Read entire pack</a></div>
       ${p.pages.map((t, i) => `<div class="page"><div class="pno">Page ${i + 1} of ${p.pages.length}</div>${esc(t)}</div>`).join('')}
       ${it && it.resolutionText ? `<div class="card"><h3>Proposed resolution</h3><p class="muted">${esc(it.resolutionText)}</p></div>` : ''}
       ${notesBox(p.id)}
@@ -520,7 +551,7 @@
     const ps = papersOf(mid);
     ps.forEach((p) => { if (!p.readBy[me().id]) setTimeout(() => api('/api/action', { type: 'paper.read', payload: { paperId: p.id } }).catch(() => {}), 2000); });
     return `<div class="reader">
-      <div class="page-head"><div><a href="#/meeting/${m.id}" class="faint">← ${esc(m.title)}</a><h1>Board pack</h1><p class="faint">${ps.length} papers · ${ps.reduce((a, p) => a + p.pages.length, 0)} pages, in agenda order</p></div></div>
+      <div class="page-head"><div><a href="#/meeting/${m.id}" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} ${esc(m.title)}</a><h1>Board pack</h1><p class="faint">${ps.length} papers · ${ps.reduce((a, p) => a + p.pages.length, 0)} pages, in agenda order</p></div></div>
       ${m.agenda.map((it) => {
         const p = ps.find((x) => x.itemId === it.id);
         return `<h2 style="margin:24px 0 10px">${it.no}. ${esc(it.title)}</h2>${p ? p.pages.map((t, i) => `<div class="page"><div class="pno">${esc(p.title)} · page ${i + 1}</div>${esc(t)}</div>`).join('') + notesBox(p.id) : '<p class="faint">No paper for this item.</p>'}`;
@@ -545,7 +576,7 @@
     const paper = papersOf(m.id).find((p) => p.itemId === it.id);
     let main = `<div class="card live-item"><div class="faint">Item ${it.no} of ${m.agenda.length} · ${it.type === 'decision' ? 'For decision' : 'For information'} · presented by ${esc(uname(it.presenter))}</div>
       <h1 style="margin-top:6px">${esc(it.title)}</h1>
-      ${it.resolutionText ? `<p class="muted" style="font-family:var(--font);font-size:16px">${esc(it.resolutionText)}</p>` : ''}
+      ${it.resolutionText ? `<p class="body-large">${esc(it.resolutionText)}</p>` : ''}
       ${paper ? `<a class="btn small" href="#/paper/${paper.id}">Open paper</a>` : ''}
       ${it.outcome ? `<p style="margin-top:12px"><span class="chip ${OUTCOME[it.outcome][1]}">${OUTCOME[it.outcome][0]}</span></p>` : ''}`;
     if (it.type === 'decision' && (it.voteOpen || Object.keys(it.votes || {}).length)) {
@@ -564,13 +595,13 @@
     if (isStaff()) {
       main += `<div class="card"><h2>Secretary's console</h2>
         <div class="btns">
-          <button class="btn" ${m.liveItem === 0 ? 'disabled' : ''} onclick="B.act('live.goto',{meetingId:'${m.id}',index:${m.liveItem - 1}})">← Previous item</button>
-          <button class="btn" ${m.liveItem >= m.agenda.length - 1 ? 'disabled' : ''} onclick="B.act('live.goto',{meetingId:'${m.id}',index:${m.liveItem + 1}})">Next item →</button>
+          <button class="btn" ${m.liveItem === 0 ? 'disabled' : ''} onclick="B.act('live.goto',{meetingId:'${m.id}',index:${m.liveItem - 1}})">${ms('arrow_back')}Previous</button>
+          <button class="btn" ${m.liveItem >= m.agenda.length - 1 ? 'disabled' : ''} onclick="B.act('live.goto',{meetingId:'${m.id}',index:${m.liveItem + 1}})">Next${ms('arrow_forward')}</button>
           ${it.type === 'decision' ? (it.voteOpen ? `<button class="btn primary" onclick="B.act('vote.close',{meetingId:'${m.id}',itemId:'${it.id}'},'Vote closed')">Close vote and record result</button>` : `<button class="btn primary" onclick="B.act('vote.open',{meetingId:'${m.id}',itemId:'${it.id}'},'Voting is open')">${Object.keys(it.votes).length ? 'Re-open vote' : 'Open vote'}</button>`) : `<button class="btn" onclick="B.act('item.outcome',{meetingId:'${m.id}',itemId:'${it.id}',outcome:'noted'},'Noted')">Mark noted</button>`}
           <button class="btn" onclick="B.act('item.outcome',{meetingId:'${m.id}',itemId:'${it.id}',outcome:'deferred'},'Deferred')">Defer</button>
         </div>
         <label>Discussion notes for the minutes</label><textarea id="disc-${it.id}" onblur="B.saveDiscussion('${m.id}','${it.id}')">${esc(it.discussion)}</textarea>
-        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+        <hr class="divider">
         <button class="btn danger" onclick="B.endMeeting('${m.id}')">End meeting and draft minutes</button>
       </div>`;
     }
@@ -578,7 +609,7 @@
       <div class="card"><div class="card-head"><h2>Attendance</h2><span class="chip ${quorate ? 'ok' : 'bad'}">${present} present · quorum ${m.quorum}</span></div>
       <ul class="list">${b.members.map((x) => `<li class="row" style="padding:8px 0"><span class="avatar">${initials(uname(x))}</span><div class="grow">${esc(uname(x))}</div>
         ${isStaff() ? `<select onchange="B.act('live.attendance',{meetingId:'${m.id}',userId:'${x}',status:this.value})" style="width:auto;padding:4px 8px">${['present', 'virtual', 'apologies', 'absent'].map((s) => `<option value="${s}" ${m.attendance[x] === s ? 'selected' : ''}>${s === 'virtual' ? 'By video' : s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>` : `<span class="chip ${['present', 'virtual'].includes(m.attendance[x]) ? 'ok' : ''}">${{ present: 'Present', virtual: 'By video', apologies: 'Apologies', absent: 'Not joined' }[m.attendance[x]] || '—'}</span>`}</li>`).join('')}</ul></div>`;
-    return `<div class="banner live"><span>● Live · ${esc(m.title)}</span>${m.videoLink ? `<a class="btn small" href="${esc(m.videoLink)}" target="_blank" rel="noopener">Video link</a>` : ''}</div>
+    return `<div class="banner live"><span style="display:flex;align-items:center;gap:8px">${ms('radio_button_checked', 'fill')} Live · ${esc(m.title)}</span>${m.videoLink ? `<a class="btn small" href="${esc(m.videoLink)}" target="_blank" rel="noopener">Video link</a>` : ''}</div>
       <div class="split"><div>${main}</div><div>${side}</div></div>`;
   }
 
@@ -592,13 +623,13 @@
     const signers = [b.chair, csId()];
     const canSign = mn.status === 'circulated' && signers.includes(u.id) && !mn.signatures[u.id];
     const st = { draft: ['Draft', 'warn'], circulated: ['Out for signature', 'brand'], signed: ['Signed and sealed', 'ok'] }[mn.status];
-    return `<div class="page-head"><div><a href="#/meeting/${m.id}" class="faint">← ${esc(m.title)}</a><h1>Minutes</h1><span class="chip ${st[1]}">${st[0]}</span></div></div>
+    return `<div class="page-head"><div><a href="#/meeting/${m.id}" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} ${esc(m.title)}</a><h1>Minutes</h1><span class="chip ${st[1]}">${st[0]}</span></div></div>
       <div class="split">
-        <div class="letter">${isStaff() && mn.status !== 'signed' ? `<textarea id="minText" style="min-height:520px;font-family:var(--font);font-size:15px;border:0;padding:0">${esc(mn.text)}</textarea>` : `<div class="minutes-text">${esc(mn.text)}</div>`}
-          ${mn.status === 'signed' ? `<div style="display:flex;gap:40px;margin-top:28px;flex-wrap:wrap">${signers.map((s) => `<div><div class="seal">✓ ${fmtDT(mn.signatures[s])}</div><div style="margin-top:6px"><b>${esc(uname(s))}</b><br><span class="faint">${s === b.chair ? 'Chair' : 'Company Secretary'}</span></div></div>`).join('')}</div>` : ''}
+        <div class="letter">${isStaff() && mn.status !== 'signed' ? `<textarea id="minText" style="min-height:520px;border:0;padding:0;font:400 16px/26px var(--font)">${esc(mn.text)}</textarea>` : `<div class="minutes-text">${esc(mn.text)}</div>`}
+          ${mn.status === 'signed' ? `<div style="display:flex;gap:40px;margin-top:28px;flex-wrap:wrap">${signers.map((s) => `<div><div class="seal">${ms('verified', 'sm')} ${fmtDT(mn.signatures[s])}</div><div style="margin-top:6px"><b>${esc(uname(s))}</b><br><span class="faint">${s === b.chair ? 'Chair' : 'Company Secretary'}</span></div></div>`).join('')}</div>` : ''}
         </div>
         <div>
-          <div class="card"><h2>Signatures</h2>${signers.map((s) => `<div class="check ${mn.signatures[s] ? 'ok' : 'bad'}"><span class="mark">${mn.signatures[s] ? '✓' : '…'}</span><div><b>${esc(uname(s))}</b> · ${s === b.chair ? 'Chair' : 'Company Secretary'}<div class="faint">${mn.signatures[s] ? 'Signed ' + fmtDT(mn.signatures[s]) : 'Not yet signed'}</div></div></div>`).join('')}
+          <div class="card"><h2>Signatures</h2>${signers.map((s) => `<div class="check ${mn.signatures[s] ? 'ok' : 'bad'}"><span class="mark">${ms(mn.signatures[s] ? 'check' : 'more_horiz')}</span><div><b>${esc(uname(s))}</b> · ${s === b.chair ? 'Chair' : 'Company Secretary'}<div class="faint">${mn.signatures[s] ? 'Signed ' + fmtDT(mn.signatures[s]) : 'Not yet signed'}</div></div></div>`).join('')}
             ${canSign ? `<button class="btn primary big" style="width:100%;margin-top:12px" onclick="B.signMinutes('${m.id}')">Sign with one-time code</button>` : ''}
           </div>
           ${isStaff() && mn.status !== 'signed' ? `<div class="card"><h2>Secretary</h2><div class="btns"><button class="btn" onclick="B.saveMinutes('${m.id}')">Save changes</button>${mn.status === 'draft' ? `<button class="btn primary" onclick="B.circulate('${m.id}')">Circulate for signature</button>` : ''}</div>${mn.status === 'circulated' ? '<p class="faint" style="margin-top:8px">Editing circulated minutes clears any signatures already given.</p>' : ''}</div>` : ''}
@@ -612,7 +643,7 @@
     const list = S.resolutions.slice().sort((a, b) => b.passedOn.localeCompare(a.passedOn)).filter((r) => !q || (r.title + r.text + r.ref).toLowerCase().includes(q.toLowerCase()));
     return `<div class="page-head"><div><h1>Resolution register</h1><p class="muted">Every resolution passed, with its vote. Search instead of opening cupboards.</p></div></div>
       <input placeholder="Search resolutions, e.g. dividend" value="${esc(q)}" oninput="B.rsearch(this.value)" style="margin-bottom:14px">
-      <div class="card flush">${list.map((r) => `<div class="row" style="align-items:flex-start"><div class="icon-dot" style="font-size:10px;font-weight:700">${esc(body(r.body).code)}</div><div class="grow"><div class="title">${esc(r.title)}</div><p class="muted" style="margin:4px 0">${esc(r.text)}</p>
+      <div class="card flush">${list.map((r) => `<div class="row" style="align-items:flex-start"><div class="icon-dot">${esc(body(r.body).code)}</div><div class="grow"><div class="title">${esc(r.title)}</div><p class="muted" style="margin:4px 0">${esc(r.text)}</p>
         <div class="faint">${esc(r.ref)} · ${fmtDate(r.passedOn)} · ${r.tally.for} for, ${r.tally.against} against, ${r.tally.abstain} abstained · <a href="#/meeting/${r.meetingId}">meeting</a></div></div></div>`).join('') || '<div class="empty">No resolutions match.</div>'}</div>`;
   }
   function archiveView() {
@@ -627,7 +658,7 @@
     return `<div class="page-head"><div><h1>Ask the record</h1><p class="muted">Ask what the Board decided, in plain words. Answers come only from the resolution register and cite their source.</p></div></div>
       <div class="card"><form onsubmit="event.preventDefault(); B.ask(this.q.value)" class="btns"><input name="q" placeholder="What did the Board decide about the dividend?" style="flex:1;min-width:200px" value="${esc(lastAsk ? lastAsk.q : '')}"><button class="btn primary">Ask</button></form>
         <div class="btns" style="margin-top:10px">${['What did we decide on the dividend?', 'Who was appointed CFO?', 'Solar project cost', 'Budget for FY2027'].map((x) => `<button class="btn small" onclick="B.ask('${x}')">${x}</button>`).join('')}</div></div>
-      ${lastAsk ? `<div class="card"><h3>Answer</h3><p style="font-family:var(--font);font-size:17px">${esc(lastAsk.answer)}</p>${lastAsk.sources.length ? `<div class="faint">Sources: ${lastAsk.sources.map((s) => `<a href="#/meeting/${s.meetingId}">${esc(s.ref)}</a> (${fmtDate(s.passedOn)})`).join(' · ')}</div>` : ''}<p class="faint" style="margin-top:8px">Demo: answers are found by searching the register, not generated.</p></div>` : ''}`;
+      ${lastAsk ? `<div class="card"><h3>Answer</h3><p class="body-large">${esc(lastAsk.answer)}</p>${lastAsk.sources.length ? `<div class="faint">Sources: ${lastAsk.sources.map((s) => `<a href="#/meeting/${s.meetingId}">${esc(s.ref)}</a> (${fmtDate(s.passedOn)})`).join(' · ')}</div>` : ''}<p class="faint" style="margin-top:8px">Demo: answers are found by searching the register, not generated.</p></div>` : ''}`;
   }
 
   // ---- CS screens ----
@@ -677,7 +708,7 @@
       ${list.map((u) => `<tr class="action-row" onclick="location.hash='#/cs/users/${u.id}'"><td><a href="#/cs/users/${u.id}"><b>${esc(u.name)}</b></a><div class="faint">${esc(u.title)}</div></td>
         <td class="mono">${esc(u.username || '')}</td><td>${ROLE[u.role]}${u.voting ? '' : ' <span class="faint">· no vote</span>'}</td>
         <td class="hide-sm faint">${S.bodies.filter((b) => b.members.includes(u.id)).map((b) => b.code + (b.chair === u.id ? ' (Chair)' : '')).join(', ') || '—'}</td>
-        <td class="hide-sm faint">${esc(u.email || '—')}<br>${u.mobile ? esc(u.mobile) : '<span style="color:var(--bad)">No mobile</span>'}</td>
+        <td class="hide-sm faint">${esc(u.email || '—')}<br>${u.mobile ? esc(u.mobile) : '<span class="text-error">No mobile</span>'}</td>
         <td>${u.active === false ? '<span class="chip">Deactivated</span>' : u.mustChange ? '<span class="chip warn">Must set password</span>' : '<span class="chip ok">Active</span>'}</td></tr>`).join('')}
       </table></div>
       <div class="card"><h2>Chairs</h2><p class="muted">The Chair approves the agenda and signs the minutes.</p>
@@ -689,16 +720,16 @@
     const u = isNew ? { name: '', title: '', role: 'director', email: '', mobile: '', voting: true, username: '' } : S.users.find((x) => x.id === id);
     if (!u) return notFound();
     const self = u.id === me().id;
-    return `<div class="page-head"><div><a href="#/cs/users" class="faint">← Users</a><h1>${isNew ? 'Add user' : esc(u.name)}</h1>${!isNew ? (u.active === false ? '<span class="chip">Deactivated</span>' : '<span class="chip ok">Active</span>') : ''}</div></div>
+    return `<div class="page-head"><div><a href="#/cs/users" class="faint" style="display:inline-flex;align-items:center;gap:4px;min-height:32px">${ms('arrow_back', 'sm')} Users</a><h1>${isNew ? 'Add user' : esc(u.name)}</h1>${!isNew ? (u.active === false ? '<span class="chip">Deactivated</span>' : '<span class="chip ok">Active</span>') : ''}</div></div>
       <div class="split">
       <form class="card" id="userForm" onsubmit="event.preventDefault(); B.saveUser('${isNew ? '' : u.id}', this)">
         <div class="grid2"><div><label>Full name</label><input name="name" value="${esc(u.name)}" required></div><div><label>Title</label><input name="title" value="${esc(u.title)}" placeholder="e.g. Independent Director"></div></div>
         <div class="grid2"><div><label>Role</label><select name="role" ${self ? 'disabled' : ''}>${ROLE_OPTS.map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
           <div><label>User ID</label><input name="username" value="${esc(u.username)}" placeholder="${isNew ? 'Leave blank to create from the name' : ''}" autocapitalize="none" spellcheck="false"></div></div>
         <div class="grid2"><div><label>Email</label><input name="email" type="email" value="${esc(u.email)}"></div><div><label>Mobile (for sign-in codes and notices)</label><input name="mobile" value="${esc(u.mobile)}" placeholder="+92 3xx xxxxxxx"></div></div>
-        <label><input type="checkbox" name="voting" ${u.voting ? 'checked' : ''} style="width:auto;margin-right:6px">Has a vote at meetings (not used for the Company Secretary's office)</label>
+        <label><input type="checkbox" name="voting" ${u.voting ? 'checked' : ''} >Has a vote at meetings (not used for the Company Secretary's office)</label>
         <label>Board and committees</label>
-        ${S.bodies.map((b) => `<label style="font-weight:500;color:var(--ink);margin:6px 0"><input type="checkbox" name="body_${b.id}" ${!isNew && b.members.includes(u.id) ? 'checked' : ''} style="width:auto;margin-right:6px">${esc(b.name)}${b.chair === u.id ? ' <span class="chip brand">Chair</span>' : ''}</label>`).join('')}
+        ${S.bodies.map((b) => `<label><input type="checkbox" name="body_${b.id}" ${!isNew && b.members.includes(u.id) ? 'checked' : ''} >${esc(b.name)}${b.chair === u.id ? ' <span class="chip brand">Chair</span>' : ''}</label>`).join('')}
         ${isNew ? `<label>Temporary password</label><div class="btns"><input name="password" id="newPw" value="${tempPassword()}" style="flex:1" class="mono"><button type="button" class="btn" onclick="document.getElementById('newPw').value=B.tempPassword()">New</button></div><p class="faint">Give this to the user. They must choose their own password the first time they sign in.</p>` : ''}
         <button class="btn primary big" style="margin-top:16px">${isNew ? 'Add user' : 'Save changes'}</button>
       </form>
@@ -806,6 +837,8 @@
     act,
     signOut,
     toggleNav() { navOpen = !navOpen; render(); },
+    openMore() { moreSheet(); },
+    closeSheet() { $('#modal-root').innerHTML = ''; },
     closeNav() { if (navOpen) { navOpen = false; } },
     async passwordLogin(f) {
       try {
