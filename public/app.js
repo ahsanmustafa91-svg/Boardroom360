@@ -197,9 +197,9 @@
         ${link('#/cs/register', 'Notices', draftCount)}
         ${link('#/cs/new', 'New meeting')}
         ${link('#/cs/compliance', 'Compliance')}
-        ${link('#/cs/fees', 'Directors\' fees')}
-        ${link('#/cs/members', 'Members register')}
-        ${link('#/cs/activity', 'Activity log')}
+        ${link('#/cs/fees', 'Fees')}
+        ${link('#/cs/members', 'Members')}
+        ${link('#/cs/activity', 'Activity')}
         <div class="sep">Records</div>
         ${link('#/resolutions', 'Resolutions')}
         ${link('#/archive', 'Archive')}
@@ -212,15 +212,16 @@
         ${link('#/archive', 'Archive')}
         ${link('#/ask', 'Ask the record')}`;
     return `
+      <div class="masthead">
       <header class="topbar">
-        <button class="btn small menu-btn" onclick="B.toggleNav()" aria-label="Menu">☰</button>
         <a class="logo" href="#/home"><div class="logo-mark">B360</div><div>Boardroom 360<small>${esc(S.company.name)}</small></div></a>
         <div class="spacer"></div>
         <div class="who"><b>${esc(u.name)}</b><span class="faint">${esc(u.title)}</span></div>
         <button class="btn small" onclick="B.signOut()">Sign out</button>
       </header>
+      <nav class="nav" aria-label="Main"><div class="nav-inner">${nav}</div></nav>
+      </div>
       <div class="shell">
-        <nav class="nav ${navOpen ? 'open' : ''}" onclick="B.closeNav()">${nav}</nav>
         <main>${content}</main>
       </div>`;
   }
