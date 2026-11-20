@@ -1,6 +1,6 @@
 # Boardroom 360
 
-The digital boardroom. Made in Pakistan, for Pakistan.
+The digital boardroom.
 
 A board portal MVP for one demo client, **Demo Company Limited** (fictional). Directors, the Chairman, the CEO, the Company Secretary and the CS Assistant sign in with a user ID, a password and a one-time code, and share one live record of notices, date polls, papers, votes, minutes and resolutions.
 

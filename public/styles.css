@@ -334,14 +334,15 @@ tr.action-row::after { display: none; }
 
 /* ---------- sign in ---------- */
 .signin { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; background: var(--md-surface); }
-.signin .hero { margin: 16px; border-radius: var(--shape-xl); background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 48px; display: flex; flex-direction: column; justify-content: space-between; }
+.signin .hero { margin: 16px; border-radius: var(--shape-xl); background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 48px; display: flex; flex-direction: column; gap: 32px; }
 .signin .hero .logo, .signin .hero .logo small { color: var(--md-on-primary-container); }
-.signin .hero h1 { font: 400 45px/52px var(--font); margin-top: 40px; }
-.signin .hero h1 em { font-style: normal; color: var(--md-primary); }
-.signin .hero p { font: 400 16px/24px var(--font); letter-spacing: .031em; max-width: 460px; opacity: .9; }
-.pk { display: inline-flex; align-items: center; gap: 8px; height: 32px; background: var(--md-surface-container-lowest); color: var(--md-on-surface); padding: 0 16px 0 12px; border-radius: var(--shape-full); font: 500 14px/20px var(--font); }
-.pk .flag { width: 22px; height: 15px; border-radius: 2px; background: linear-gradient(90deg, #fff 25%, #01411c 25%); position: relative; flex: none; }
-.pk .flag::after { content: '☪'; position: absolute; left: 9px; top: -3px; color: #fff; font-size: 12px; }
+.signin .hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 560px; }
+.signin .hero h1 { font: 400 45px/52px var(--font); margin: 0 0 16px; }
+.signin .hero h1 em { font-style: normal; white-space: nowrap; color: color-mix(in srgb, var(--md-primary) 70%, var(--md-on-primary-container)); }
+.signin .hero p { font: 400 16px/24px var(--font); letter-spacing: .031em; max-width: 480px; opacity: .9; margin: 0; }
+.hero-points { list-style: none; padding: 0; margin: 32px 0 0; display: flex; flex-direction: column; gap: 16px; }
+.hero-points li { display: flex; align-items: center; gap: 16px; font: 500 14px/20px var(--font); letter-spacing: .007em; }
+.hero-points .ms { width: 40px; height: 40px; border-radius: var(--shape-full); display: grid; place-items: center; background: var(--md-surface-container-lowest); color: var(--md-primary); font-size: 20px; flex: none; }
 .signin .panel { padding: 48px; display: flex; flex-direction: column; justify-content: center; max-width: 560px; }
 .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); display: grid; place-items: center; font: 500 14px/1 var(--font); flex: none; }
 .sms { background: var(--md-inverse-surface); color: var(--md-inverse-on-surface); border-radius: var(--shape-l); padding: 16px; margin: 16px 0; }
@@ -394,7 +395,8 @@ tr.action-row::after { display: none; }
   .grid4 { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .signin { grid-template-columns: 1fr; }
   .signin .hero { padding: 32px 24px; margin: 8px; }
-  .signin .hero h1 { font: 400 32px/40px var(--font); margin-top: 24px; }
+  .signin .hero h1 { font: 400 32px/40px var(--font); }
+  .hero-points { margin-top: 24px; }
   .signin .panel { padding: 24px 16px 40px; }
   .letter { padding: 24px 16px; }
   .reader .page { padding: 24px 16px; }

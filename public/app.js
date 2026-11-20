@@ -148,11 +148,15 @@
     <div class="signin">
       <section class="hero">
         <div class="logo"><div class="logo-mark">B360</div><div><span class="logo-text">Boardroom 360</span><small>The digital boardroom</small></div></div>
-        <div>
+        <div class="hero-body">
           <h1>Your board, finally <em>in one place.</em></h1>
           <p>Notices, papers, votes, minutes and resolutions, with a record that stands up to SECP scrutiny. No more WhatsApp papers, phone-call attendance or minutes waiting weeks for a signature.</p>
+          <ul class="hero-points">
+            <li>${ms('mail')}<span>Notices and working papers, acknowledged on time</span></li>
+            <li>${ms('cast_for_education')}<span>Live meetings with attendance, votes and suggestions</span></li>
+            <li>${ms('history_edu')}<span>Minutes signed with a one-time code</span></li>
+          </ul>
         </div>
-        <div><span class="pk"><span class="flag"></span> Made in Pakistan, for Pakistan</span></div>
       </section>
       <section class="panel" id="signin-panel">
         ${pendingUser ? otpPanel(pendingUser) : passwordPanel()}
