@@ -636,6 +636,11 @@
     const voters = b.members.filter((x) => user(x).voting);
     const paper = papersOf(m.id).find((p) => p.itemId === it.id);
     let main = '';
+    if (isMember(m) && joined) {
+      const other = m.attendance[u.id] === 'virtual' ? 'present' : 'virtual';
+      main += `<div class="card checkin done"><div class="card-head"><div style="display:flex;align-items:center;gap:12px">${ms('how_to_reg', 'fill')}<div><b>You are marked ${m.attendance[u.id] === 'virtual' ? 'present by video' : 'present in the room'}</b>${m.joinedAt && m.joinedAt[u.id] ? `<div class="faint">Since ${fmtDT(m.joinedAt[u.id])}</div>` : ''}</div></div>
+        <button class="btn small" onclick="B.join('${m.id}','${other}')">${other === 'virtual' ? 'Switch to video' : "I'm in the room now"}</button></div></div>`;
+    }
     if (isMember(m) && !joined) {
       main += `<div class="card checkin"><h2>Mark your attendance</h2><p class="muted">Join to be counted for the quorum, approve the agenda, vote and post suggestions.</p>
         <div class="btns"><button class="btn primary" onclick="B.join('${m.id}','present')">${ms('meeting_room')}I'm in the room</button><button class="btn tonal" onclick="B.join('${m.id}','virtual')">${ms('videocam')}Joining by video</button></div></div>`;
@@ -646,11 +651,12 @@
       Object.values((av && av.votes) || {}).forEach((v) => { at[v]++; });
       const mineA = av && av.votes[u.id];
       let ac = `<div class="card agenda-approval"><div class="card-head"><h2>Approval of the agenda</h2>${av ? (av.status === 'open' ? '<span class="chip warn">Open</span>' : av.status === 'approved' ? '<span class="chip ok">Approved</span>' : '<span class="chip bad">Not approved</span>') : ''}</div>`;
-      if (!av) ac += `<p class="muted">Ask the members present to approve the agenda before the business begins.</p><button class="btn primary" onclick="B.act('agendaVote.open',{meetingId:'${m.id}'},'Agenda approval is open')">${ms('how_to_vote')}Ask members to approve the agenda</button>`;
-      else {
+      if (!av || av.status === 'not_approved') ac += `<p class="muted">${av ? 'The agenda was not approved. You can ask the members again after changes.' : 'Ask the members present to approve the agenda before the business begins.'}</p><button class="btn primary" onclick="B.act('agendaVote.open',{meetingId:'${m.id}'},'Agenda approval is open')">${ms('how_to_vote')}Ask members to approve the agenda</button>`;
+      if (av) {
         ac += `<p class="faint">${at.approve} approve · ${at.object} object · ${present - Object.keys(av.votes).length > 0 ? present - Object.keys(av.votes).length : 0} present yet to respond${av.closedAt ? ' · closed ' + fmtDT(av.closedAt) : ''}</p>`;
         if (av.status === 'open' && isMember(m) && joined) ac += `<div class="vote-btns"><button class="btn ${mineA === 'approve' ? 'sel' : ''}" onclick="B.act('agendaVote.respond',{meetingId:'${m.id}',choice:'approve'})">${ms('thumb_up')}Approve</button><button class="btn ${mineA === 'object' ? 'sel' : ''}" onclick="B.act('agendaVote.respond',{meetingId:'${m.id}',choice:'object'})">${ms('thumb_down')}Object</button></div>`;
-        if (av.status === 'open' && isStaff()) ac += `<div class="btns" style="margin-top:12px"><button class="btn primary" onclick="B.act('agendaVote.close',{meetingId:'${m.id}'},'Agenda approval recorded')">Close and record</button></div>`;
+        if (av.status === 'open' && isMember(m) && !joined) ac += '<p class="faint">Mark your attendance above to approve the agenda.</p>';
+        if (av.status === 'open' && isStaff()) ac += `<p class="faint">Each member approves from their own profile. Close it once everyone present has responded.</p><div class="btns" style="margin-top:12px"><button class="btn primary" onclick="B.act('agendaVote.close',{meetingId:'${m.id}'},'Agenda approval recorded')">Close and record</button></div>`;
       }
       main += ac + '</div>';
     }
@@ -673,11 +679,11 @@
     }
     main += '</div>';
     const sugs = it.suggestions || [];
-    const canPost = isStaff() || (isMember(m) && joined);
+    const canPost = isMember(m) && joined;
     main += `<div class="card suggestions"><div class="card-head"><h2>Suggestions on item ${it.no}</h2><span class="chip">${sugs.length}</span></div>
       ${sugs.length ? `<ul class="list">${sugs.map((x) => `<li class="row" style="padding:12px 0;align-items:flex-start"><span class="avatar">${initials(uname(x.by))}</span><div class="grow"><div><b>${esc(uname(x.by))}</b> <span class="faint">${fmtDT(x.at)}</span></div><p style="margin:4px 0 0">${esc(x.text)}</p></div>
         ${x.status === 'adopted' ? '<span class="chip ok">In the minutes</span>' : isStaff() ? `<button class="btn small" onclick="B.act('suggest.adopt',{meetingId:'${m.id}',itemId:'${it.id}',id:'${x.id}'},'Added to the minutes notes')">Add to minutes</button>` : ''}</li>`).join('')}</ul>` : '<p class="muted">No suggestions on this item yet.</p>'}
-      ${canPost ? `<form class="sugg-form" onsubmit="event.preventDefault(); B.suggest('${m.id}','${it.id}', this.t)"><textarea name="t" placeholder="Suggest a change or raise a point on this item…" maxlength="1000" style="min-height:72px"></textarea><div class="btns" style="margin-top:8px"><button class="btn primary">${ms('send')}Post suggestion</button></div></form>` : isMember(m) ? '<p class="faint">Mark your attendance to post a suggestion.</p>' : ''}
+      ${canPost ? `<form class="sugg-form" onsubmit="event.preventDefault(); B.suggest('${m.id}','${it.id}', this.t)"><textarea name="t" placeholder="Suggest a change or raise a point on this item…" maxlength="1000" style="min-height:72px"></textarea><div class="btns" style="margin-top:8px"><button class="btn primary">${ms('send')}Post suggestion</button></div></form>` : isMember(m) ? '<p class="faint">Mark your attendance to post a suggestion.</p>' : isStaff() ? '<p class="faint">Members post suggestions from their own profile. Add the useful ones to the minutes.</p>' : ''}
     </div>`;
     if (isStaff()) {
       main += `<div class="card"><h2>Secretary's console</h2>
@@ -695,7 +701,7 @@
     const side = `<div class="card"><h2>Agenda</h2><ul class="list agenda-list">${m.agenda.map((x, i) => `<li class="${i === m.liveItem ? 'current' : x.outcome ? 'done' : ''}"><span>${x.no}.</span><span style="flex:1">${esc(x.title)}</span>${(x.suggestions || []).length ? `<span class="faint" style="display:inline-flex;align-items:center;gap:2px">${ms('forum', 'sm')}${x.suggestions.length}</span>` : ''}${x.outcome ? `<span class="chip ${OUTCOME[x.outcome][1]}">${OUTCOME[x.outcome][0]}</span>` : ''}</li>`).join('')}</ul></div>
       <div class="card"><div class="card-head"><h2>Attendance</h2><span class="chip ${quorate ? 'ok' : 'bad'}">${present} present · quorum ${m.quorum}</span></div>
       <ul class="list">${b.members.map((x) => `<li class="row" style="padding:8px 0"><span class="avatar">${initials(uname(x))}</span><div class="grow">${esc(uname(x))}${m.joinedAt && m.joinedAt[x] && ['present', 'virtual'].includes(m.attendance[x]) ? `<div class="faint">Joined ${fmtDT(m.joinedAt[x])}</div>` : ''}</div>
-        ${isStaff() ? `<select onchange="B.act('live.attendance',{meetingId:'${m.id}',userId:'${x}',status:this.value})" class="att">${['present', 'virtual', 'apologies', 'absent'].map((s) => `<option value="${s}" ${m.attendance[x] === s ? 'selected' : ''}>${s === 'virtual' ? 'By video' : s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>` : `<span class="chip ${['present', 'virtual'].includes(m.attendance[x]) ? 'ok' : ''}">${{ present: 'Present', virtual: 'By video', apologies: 'Apologies', absent: 'Not joined' }[m.attendance[x]] || '—'}</span>`}</li>`).join('')}</ul></div>`;
+        <span class="chip ${['present', 'virtual'].includes(m.attendance[x]) ? 'ok' : ''}">${{ present: 'Present', virtual: 'By video', apologies: 'Apologies', absent: 'Not joined' }[m.attendance[x]] || '—'}</span></li>`).join('')}</ul></div>`;
     return `<div class="banner live"><span style="display:flex;align-items:center;gap:8px">${ms('radio_button_checked', 'fill')} Live · ${esc(m.title)}</span>${m.videoLink ? `<a class="btn small" href="${esc(m.videoLink)}" target="_blank" rel="noopener">Video link</a>` : ''}</div>
       <div class="split"><div>${main}</div><div>${side}</div></div>`;
   }

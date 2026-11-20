@@ -412,4 +412,6 @@ tr.action-row::after { display: none; }
 .checkin .muted { color: inherit; opacity: .85; }
 .suggestions .list .row:last-child { border-bottom: 0; }
 .sugg-form { margin-top: 16px; }
-select.att { width: auto; height: 40px; min-height: 40px; padding: 0 32px 0 12px; border-radius: var(--shape-s); }
+.checkin.done { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.checkin.done .faint { color: inherit; opacity: .8; }
+.checkin.done .card-head { margin: 0; }

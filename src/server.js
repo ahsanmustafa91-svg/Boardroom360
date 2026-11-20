@@ -317,6 +317,9 @@ const actions = {
     if (m.status !== 'scheduled') fail('Only a scheduled meeting can be started.');
     m.status = 'live'; m.liveItem = 0; m.startedAt = nowIso();
     m.attendance = Object.fromEntries(body(s, m.body).members.map((id) => [id, m.rsvps[id] === 'apologies' ? 'apologies' : 'absent']));
+    m.joinedAt = {};
+    // members approve the agenda themselves as soon as they join
+    m.agendaVote = { status: 'open', votes: {}, openedAt: nowIso() };
     log(s, u, `${m.title} started.`);
   },
   'live.join'(s, u, { meetingId, mode }) {
@@ -332,7 +335,7 @@ const actions = {
     requireStaff(u);
     const m = meeting(s, meetingId);
     if (m.status !== 'live') fail('Not live');
-    if (m.agendaVote && m.agendaVote.status === 'open') fail('Agenda approval is already open.');
+    if (m.agendaVote && m.agendaVote.status !== 'not_approved') fail('Agenda approval is already open or recorded.');
     m.agendaVote = { status: 'open', votes: {}, openedAt: nowIso() };
     log(s, u, `Members asked to approve the agenda of ${m.title}.`);
   },
@@ -357,9 +360,8 @@ const actions = {
   'suggest.add'(s, u, { meetingId, itemId, text }) {
     const m = meeting(s, meetingId);
     if (m.status !== 'live') fail('Suggestions can be posted while the meeting is live.');
-    const staff = isStaff(u);
-    if (!staff && !body(s, m.body).members.includes(u.id)) fail('Only members can post suggestions.', 403);
-    if (!staff && !['present', 'virtual'].includes(m.attendance[u.id])) fail('Mark your attendance first.');
+    if (!body(s, m.body).members.includes(u.id)) fail('Only members of this body can post suggestions.', 403);
+    if (!['present', 'virtual'].includes(m.attendance[u.id])) fail('Mark your attendance first.');
     const t = String(text || '').trim().slice(0, 1000);
     if (!t) fail('Write a suggestion first.');
     const it = item(m, itemId);
@@ -375,12 +377,6 @@ const actions = {
     sg.status = 'adopted';
     const line = `${user(s, sg.by).name} suggested: ${sg.text}`;
     it.discussion = it.discussion ? `${it.discussion}\n${line}` : line;
-  },
-  'live.attendance'(s, u, { meetingId, userId, status }) {
-    requireStaff(u);
-    const m = meeting(s, meetingId);
-    if (!['present', 'virtual', 'apologies', 'absent'].includes(status)) fail('Bad status');
-    m.attendance[userId] = status;
   },
   'live.goto'(s, u, { meetingId, index }) {
     requireStaff(u);
